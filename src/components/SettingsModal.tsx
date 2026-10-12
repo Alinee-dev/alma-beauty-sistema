@@ -19,7 +19,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings,
   onSaveSettings,
   onDataReload,
-  userId,
+  userId: _userId,
 }) => {
   const [name, setName] = useState(settings.name);
   const [subtitle, setSubtitle] = useState(settings.subtitle);
