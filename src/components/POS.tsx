@@ -101,6 +101,22 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
     }));
   };
 
+  const toggleOfferItem = (productId: string) => {
+    setCart((prevCart) => prevCart.map((item) => {
+      if (item.product.id === productId) {
+        const isCurrentlyOffer = item.product.name.includes(' (Oferta)');
+        return {
+          ...item,
+          product: { 
+            ...item.product, 
+            name: isCurrentlyOffer ? item.product.name.replace(' (Oferta)', '') : `${item.product.name} (Oferta)`
+          }
+        };
+      }
+      return item;
+    }));
+  };
+
   const removeFromCart = (productId: string) => {
     setCart((prevCart) => prevCart.filter((item) => item.product.id !== productId));
   };
@@ -277,9 +293,11 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
 
                   {/* Price & Add button */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
-                    <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary-light)' }}>
-                      {settings.currency} {product.salePrice.toLocaleString()}
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary-light)' }}>
+                        {settings.currency} {product.salePrice.toLocaleString()}
+                      </span>
+                    </div>
                     <button
                       className="btn btn-primary"
                       disabled={isOut}
@@ -374,10 +392,16 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
                 />
 
                 {/* Details */}
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <h5 style={{ fontSize: '0.82rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.2rem', alignItems: 'flex-start' }}>
+                  <h5 style={{ fontSize: '0.82rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
                     {item.product.name}
                   </h5>
+                  <button 
+                    onClick={() => toggleOfferItem(item.product.id)}
+                    style={{ background: 'none', border: 'none', color: item.product.name.includes(' (Oferta)') ? '#ec4899' : 'var(--text-muted)', fontSize: '0.65rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}
+                  >
+                    <Tag size={10} /> {item.product.name.includes(' (Oferta)') ? 'Quitar etiqueta' : 'Marcar como Oferta'}
+                  </button>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: 'var(--primary-light)', fontSize: '0.8rem', fontWeight: 700 }}>
                     {settings.currency} 
                     <input 

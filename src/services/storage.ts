@@ -1,4 +1,4 @@
-import type { Product, Sale, BusinessSettings } from '../types';
+import type { Product, Sale, BusinessSettings, Expense, PersonalUseItem } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_SETTINGS } from '../data/initialData';
 
 const KEYS = {
@@ -6,6 +6,7 @@ const KEYS = {
   SALES: 'aline_beauty_sales_v2',
   SETTINGS: 'aline_beauty_settings_v2',
   EXPENSES: 'aline_beauty_expenses_v2',
+  PERSONAL_USE: 'aline_beauty_personal_use_v2',
 };
 
 // --- PRODUCTS ---
@@ -54,7 +55,13 @@ export const getSettings = (): BusinessSettings => {
       return INITIAL_SETTINGS;
     }
     const parsed = JSON.parse(data);
-    return (parsed && typeof parsed === 'object' && parsed.name) ? parsed : INITIAL_SETTINGS;
+    if (parsed && typeof parsed === 'object' && parsed.name) {
+      if (parsed.companyCapital === undefined) {
+        parsed.companyCapital = 43580;
+      }
+      return parsed;
+    }
+    return INITIAL_SETTINGS;
   } catch (error) {
     console.error('Error loading settings from localStorage:', error);
     return INITIAL_SETTINGS;
@@ -71,6 +78,7 @@ export const exportDataJSON = (): string => {
     products: getProducts(),
     sales: getSales(),
     expenses: getExpenses(),
+    personalUse: getPersonalUse(),
     settings: getSettings(),
     exportDate: new Date().toISOString(),
   };
@@ -83,6 +91,7 @@ export const importDataJSON = (jsonString: string): boolean => {
     if (data.products && Array.isArray(data.products)) saveProducts(data.products);
     if (data.sales && Array.isArray(data.sales)) saveSales(data.sales);
     if (data.expenses && Array.isArray(data.expenses)) saveExpenses(data.expenses);
+    if (data.personalUse && Array.isArray(data.personalUse)) savePersonalUse(data.personalUse);
     if (data.settings && typeof data.settings === 'object') saveSettings(data.settings);
     return true;
   } catch (error) {
@@ -95,6 +104,7 @@ export const resetToDefaultData = (): void => {
   saveProducts(INITIAL_PRODUCTS);
   saveSales([]);
   saveExpenses([]);
+  savePersonalUse([]);
   saveSettings(INITIAL_SETTINGS);
 };
 
@@ -113,4 +123,21 @@ export const getExpenses = (): Expense[] => {
 
 export const saveExpenses = (expenses: Expense[]): void => {
   localStorage.setItem(KEYS.EXPENSES, JSON.stringify(expenses));
+};
+
+// --- PERSONAL USE (USO PERSONAL / PARA MÍ) ---
+export const getPersonalUse = (): PersonalUseItem[] => {
+  try {
+    const data = localStorage.getItem(KEYS.PERSONAL_USE);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('Error loading personal use items from localStorage:', error);
+    return [];
+  }
+};
+
+export const savePersonalUse = (items: PersonalUseItem[]): void => {
+  localStorage.setItem(KEYS.PERSONAL_USE, JSON.stringify(items));
 };

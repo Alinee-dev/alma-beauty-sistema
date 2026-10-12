@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables (DO NOT commit - contains private Supabase keys)
+.env
+.env.local
+.env.production

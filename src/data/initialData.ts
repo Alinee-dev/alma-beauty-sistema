@@ -8,6 +8,7 @@ export const INITIAL_SETTINGS: BusinessSettings = {
   address: 'Av. Corrientes 1420, Buenos Aires',
   currency: '$',
   instagram: '@alinebeauty.ok',
+  companyCapital: 43580,
 };
 
 export const INITIAL_PRODUCTS: Product[] = [];

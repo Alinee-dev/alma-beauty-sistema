@@ -1,0 +1,18 @@
+{
+  "name": "Aline Beauty & Accesorios",
+  "short_name": "Aline Beauty",
+  "description": "Sistema de Ventas, Punto de Venta e Inventario para Maquillaje y Accesorios",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fcf7f9",
+  "theme_color": "#db2777",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

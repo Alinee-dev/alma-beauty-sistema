@@ -267,6 +267,16 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+
 /* Print thermal receipt styling */
 @media print {
   body * {
@@ -317,3 +327,42 @@ body {
 button[title*=" stock"] {
   color: var(--text-main) !important;
 }
+
+/* ==============================================================================
+   RESPONSIVE MOBILE STYLES (< 768px)
+   ============================================================================== */
+.show-on-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-nav {
+    display: none !important;
+  }
+  
+  .hide-on-mobile {
+    display: none !important;
+  }
+  
+  .show-on-mobile {
+    display: inline-flex !important;
+  }
+
+  main {
+    padding-bottom: 5.5rem !important; /* Space for MobileBottomNav */
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  /* Make modal dialogs fit mobile screens comfortably */
+  .glass-panel {
+    border-radius: var(--radius-sm);
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+}
+

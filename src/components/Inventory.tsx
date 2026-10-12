@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Product, Category, BusinessSettings } from '../types';
+import type { Product, Category, BusinessSettings, Sale } from '../types';
 import { 
   Search, 
   Plus, 
@@ -8,16 +8,20 @@ import {
   AlertTriangle, 
   Package, 
   Grid,
-  List as ListIcon
+  List as ListIcon,
+  Heart
 } from 'lucide-react';
 
 interface InventoryProps {
   products: Product[];
+  sales: Sale[];
   settings: BusinessSettings;
   onOpenAddModal: () => void;
   onOpenEditModal: (product: Product) => void;
   onUpdateStock: (productId: string, newStock: number) => void;
   onDeleteProduct: (productId: string) => void;
+  onOpenPersonalUse: (product?: Product, initialTab?: 'take' | 'history') => void;
+  personalUseCount: number;
 }
 
 const CATEGORIES: Category[] = [
@@ -34,11 +38,14 @@ const CATEGORIES: Category[] = [
 
 export const Inventory: React.FC<InventoryProps> = ({
   products,
+  sales,
   settings,
   onOpenAddModal,
   onOpenEditModal,
   onUpdateStock,
   onDeleteProduct,
+  onOpenPersonalUse,
+  personalUseCount,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
@@ -59,11 +66,16 @@ export const Inventory: React.FC<InventoryProps> = ({
   const totalSaleValue = products.reduce((acc, p) => acc + p.salePrice * p.stock, 0);
   const projectedProfit = totalSaleValue - totalCostValue;
 
+  const totalCostOfSoldItems = sales.reduce((acc, sale) => 
+    acc + sale.items.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0)
+  , 0);
+  const totalHistoricalInvestment = totalCostValue + totalCostOfSoldItems;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
       
       {/* Top Banner: Financial & Inventory Summary */}
-      <div className="glass-panel" style={{ padding: '1.4rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.2rem' }}>
+      <div className="glass-panel" style={{ padding: '1.4rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.2rem' }}>
         
         <div>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Catálogo Registrado</span>
@@ -73,9 +85,16 @@ export const Inventory: React.FC<InventoryProps> = ({
         </div>
 
         <div>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Valor Total del Stock (Costo)</span>
-          <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', lineHeight: 1.2 }}>Inversión Stock Actual<br/><span style={{fontSize: '0.65rem', opacity: 0.7}}>Solo mercadería física</span></span>
+          <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem' }}>
             {settings.currency} {totalCostValue.toLocaleString()}
+          </h4>
+        </div>
+
+        <div style={{ borderLeft: '3px solid #a855f7', paddingLeft: '0.8rem' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', lineHeight: 1.2 }}>Inversión Total Histórica<br/><span style={{fontSize: '0.65rem', opacity: 0.7}}>Stock actual + Ya vendido</span></span>
+          <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#a855f7', marginTop: '0.2rem' }}>
+            {settings.currency} {totalHistoricalInvestment.toLocaleString()}
           </h4>
         </div>
 
@@ -181,6 +200,23 @@ export const Inventory: React.FC<InventoryProps> = ({
               </button>
             </div>
 
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => onOpenPersonalUse(undefined, 'history')}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.4rem', 
+                borderColor: 'rgba(236, 72, 153, 0.4)', 
+                color: '#f472b6',
+                backgroundColor: 'rgba(236, 72, 153, 0.1)'
+              }}
+              title="Ver historial de productos que te quedaste para vos"
+            >
+              <Heart size={16} fill="rgba(236, 72, 153, 0.4)" />
+              <span>Para Mí {personalUseCount > 0 ? `(${personalUseCount})` : ''}</span>
+            </button>
+
             <button className="btn btn-primary" onClick={onOpenAddModal}>
               <Plus size={18} />
               <span>Nuevo Producto</span>
@@ -215,8 +251,9 @@ export const Inventory: React.FC<InventoryProps> = ({
             </thead>
             <tbody>
               {filteredProducts.map((product) => {
-                const profit = product.salePrice - product.costPrice;
-                const marginPct = product.salePrice > 0 ? Math.round((profit / product.salePrice) * 100) : 0;
+                const currentPrice = product.salePrice;
+                const profit = currentPrice - product.costPrice;
+                const marginPct = currentPrice > 0 ? Math.round((profit / currentPrice) * 100) : 0;
                 const isOut = product.stock <= 0;
                 const isLow = product.stock <= product.minStock && !isOut;
 
@@ -300,6 +337,22 @@ export const Inventory: React.FC<InventoryProps> = ({
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
                         <button
                           className="btn btn-secondary"
+                          style={{ 
+                            padding: '0.4rem 0.6rem',
+                            color: '#f472b6',
+                            borderColor: 'rgba(236, 72, 153, 0.35)',
+                            backgroundColor: 'rgba(236, 72, 153, 0.08)',
+                            opacity: product.stock <= 0 ? 0.35 : 1,
+                            cursor: product.stock <= 0 ? 'not-allowed' : 'pointer'
+                          }}
+                          disabled={product.stock <= 0}
+                          onClick={() => onOpenPersonalUse(product, 'take')}
+                          title={product.stock <= 0 ? 'Sin stock' : 'Quedármelo para mí (Uso personal sin costo)'}
+                        >
+                          <Heart size={15} fill={product.stock > 0 ? "rgba(236, 72, 153, 0.4)" : "none"} />
+                        </button>
+                        <button
+                          className="btn btn-secondary"
                           style={{ padding: '0.4rem 0.6rem' }}
                           onClick={() => onOpenEditModal(product)}
                           title="Editar Producto"
@@ -365,10 +418,26 @@ export const Inventory: React.FC<InventoryProps> = ({
                   </div>
 
                   <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    <button className="btn btn-secondary" style={{ padding: '0.4rem' }} onClick={() => onOpenEditModal(product)}>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ 
+                        padding: '0.4rem',
+                        color: '#f472b6',
+                        borderColor: 'rgba(236, 72, 153, 0.35)',
+                        backgroundColor: 'rgba(236, 72, 153, 0.08)',
+                        opacity: product.stock <= 0 ? 0.35 : 1,
+                        cursor: product.stock <= 0 ? 'not-allowed' : 'pointer'
+                      }}
+                      disabled={product.stock <= 0}
+                      onClick={() => onOpenPersonalUse(product, 'take')}
+                      title={product.stock <= 0 ? 'Sin stock' : 'Quedármelo para mí'}
+                    >
+                      <Heart size={15} fill={product.stock > 0 ? "rgba(236, 72, 153, 0.4)" : "none"} />
+                    </button>
+                    <button className="btn btn-secondary" style={{ padding: '0.4rem' }} onClick={() => onOpenEditModal(product)} title="Editar Producto">
                       <Edit3 size={15} />
                     </button>
-                    <button className="btn btn-danger" style={{ padding: '0.4rem' }} onClick={() => onDeleteProduct(product.id)}>
+                    <button className="btn btn-danger" style={{ padding: '0.4rem' }} onClick={() => onDeleteProduct(product.id)} title="Eliminar Producto">
                       <Trash2 size={15} />
                     </button>
                   </div>

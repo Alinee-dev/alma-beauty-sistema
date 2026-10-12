@@ -27,6 +27,24 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('Todos');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
+
+  const getPaymentMethodStyle = (method: string) => {
+    switch (method) {
+      case 'Fiado':
+        return { backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' }; // Rojo
+      case 'Efectivo':
+        return { backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)' }; // Verde
+      case 'Transferencia':
+        return { backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.3)' }; // Amarillo
+      case 'Tarjeta':
+        return { backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }; // Azul
+      case 'MercadoPago':
+        return { backgroundColor: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.3)' }; // Celeste
+      default:
+        return { backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' };
+    }
+  };
 
   const filteredSales = sales.filter((s) => {
     const matchesSearch =
@@ -35,6 +53,14 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
       (s.customerPhone && s.customerPhone.includes(searchTerm));
     const matchesPayment = paymentFilter === 'Todos' || s.paymentMethod === paymentFilter;
     return matchesSearch && matchesPayment;
+  });
+
+  const sortedAndFilteredSales = [...filteredSales].sort((a, b) => {
+    if (sortBy === 'newest') return new Date(b.date).getTime() - new Date(a.date).getTime();
+    if (sortBy === 'oldest') return new Date(a.date).getTime() - new Date(b.date).getTime();
+    if (sortBy === 'highest') return b.total - a.total;
+    if (sortBy === 'lowest') return a.total - b.total;
+    return 0;
   });
 
   const totalFilteredRevenue = filteredSales.reduce((acc, s) => acc + s.total, 0);
@@ -124,10 +150,22 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
           <option value="MercadoPago">MercadoPago</option>
           <option value="Fiado">Fiado</option>
         </select>
+
+        <select
+          className="glass-input"
+          style={{ width: '180px', cursor: 'pointer' }}
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as any)}
+        >
+          <option value="newest">Más recientes</option>
+          <option value="oldest">Más antiguas</option>
+          <option value="highest">Mayor total</option>
+          <option value="lowest">Menor total</option>
+        </select>
       </div>
 
       {/* Sales List Table */}
-      {filteredSales.length === 0 ? (
+      {sortedAndFilteredSales.length === 0 ? (
         <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
           <Receipt size={44} style={{ opacity: 0.4, marginBottom: '0.6rem' }} />
           <p style={{ fontSize: '1rem' }}>No se encontraron registros de ventas.</p>
@@ -147,7 +185,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
               </tr>
             </thead>
             <tbody>
-              {filteredSales.map((sale) => {
+              {sortedAndFilteredSales.map((sale) => {
                 const dateObj = new Date(sale.date);
                 const formattedDate = dateObj.toLocaleDateString('es-AR', {
                   day: '2-digit',
@@ -188,7 +226,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
                     </td>
 
                     <td style={{ padding: '0.8rem 0.9rem' }}>
-                      <span className="badge badge-pink" style={{ fontSize: '0.72rem' }}>
+                      <span className="badge" style={{ fontSize: '0.72rem', ...getPaymentMethodStyle(sale.paymentMethod) }}>
                         <CreditCard size={11} /> {sale.paymentMethod}
                       </span>
                     </td>

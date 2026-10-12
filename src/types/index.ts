@@ -15,6 +15,8 @@ export interface Product {
   category: Category;
   costPrice: number;
   salePrice: number;
+  offerPrice?: number;
+  isOfferActive?: boolean;
   stock: number;
   minStock: number;
   description?: string;
@@ -63,9 +65,11 @@ export interface BusinessSettings {
   currency: string;
   instagram: string;
   logoUrl?: string;
+  lastCashCut?: string;
+  companyCapital?: number;
 }
 
-export type ExpenseCategory = 'Bolsas/Empaques' | 'Publicidad/Marketing' | 'Envíos/Cadetería' | 'Mercadería/Insumos' | 'Alquiler/Servicios' | 'Otros';
+export type ExpenseCategory = 'Bolsas/Empaques' | 'Publicidad/Marketing' | 'Envíos/Cadetería' | 'Compra Mercadería (Inversión)' | 'Ingreso / Aporte al Pozo' | 'Alquiler/Servicios' | 'Retiro (Sueldo Personal)' | 'Otros';
 
 export interface Expense {
   id: string;
@@ -73,6 +77,19 @@ export interface Expense {
   description: string;
   amount: number;
   category: ExpenseCategory;
+}
+
+export interface PersonalUseItem {
+  id: string;
+  productId: string;
+  productName: string;
+  category: Category;
+  costPrice: number;
+  salePrice: number;
+  quantity: number;
+  date: string;
+  reason?: string;
+  imageUrl?: string;
 }
 
 export type ActiveTab = 'dashboard' | 'pos' | 'inventory' | 'sales' | 'expenses' | 'catalog';

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { BusinessSettings } from '../types';
-import { X, Save, Download, Upload, RotateCcw, Settings, Database } from 'lucide-react';
+import { X, Save, Download, Upload, RotateCcw, Settings, Database, Cloud, CheckCircle, AlertTriangle } from 'lucide-react';
 import { exportDataJSON, importDataJSON, resetToDefaultData } from '../services/storage';
+import { isSupabaseConfigured, testConnection } from '../services/supabase';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface SettingsModalProps {
   settings: BusinessSettings;
   onSaveSettings: (newSettings: BusinessSettings) => void;
   onDataReload: () => void;
+  userId?: string;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -17,6 +19,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings,
   onSaveSettings,
   onDataReload,
+  userId,
 }) => {
   const [name, setName] = useState(settings.name);
   const [subtitle, setSubtitle] = useState(settings.subtitle);
@@ -25,6 +28,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [address, setAddress] = useState(settings.address);
   const [currency, setCurrency] = useState(settings.currency);
   const [instagram, setInstagram] = useState(settings.instagram);
+  const [companyCapital, setCompanyCapital] = useState<number>(settings.companyCapital ?? 43580);
+
+  const [testingCloud, setTestingCloud] = useState(false);
+  const [cloudStatusMsg, setCloudStatusMsg] = useState<{ success: boolean; text: string } | null>(null);
+
+  const isConfigured = isSupabaseConfigured();
 
   if (!isOpen) return null;
 
@@ -38,6 +47,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       address: address.trim(),
       currency: currency.trim() || '$',
       instagram: instagram.trim(),
+      companyCapital: Number(companyCapital) || 0,
+      lastCashCut: settings.lastCashCut,
     };
     onSaveSettings(updated);
     onClose();
@@ -85,11 +96,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
+  const handleTestConnection = async () => {
+    setTestingCloud(true);
+    setCloudStatusMsg(null);
+    const res = await testConnection();
+    setTestingCloud(false);
+    setCloudStatusMsg({ success: res.ok, text: res.message });
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div 
         className="glass-panel" 
-        style={{ width: '100%', maxWidth: '580px', padding: '1.8rem', maxHeight: '90vh', overflowY: 'auto' }}
+        style={{ width: '100%', maxWidth: '600px', padding: '1.8rem', maxHeight: '90vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -107,6 +126,67 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
           
+          {/* Cloud Status Section - info only, sync is automatic */}
+          <div style={{
+            padding: '1rem',
+            borderRadius: '14px',
+            backgroundColor: isConfigured ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+            border: `1px solid ${isConfigured ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'}`
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Cloud size={18} color={isConfigured ? '#059669' : '#d97706'} />
+                <h4 style={{ fontSize: '0.92rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                  Base de Datos en la Nube (Supabase)
+                </h4>
+              </div>
+              <span style={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: '999px',
+                backgroundColor: isConfigured ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                color: isConfigured ? '#059669' : '#d97706'
+              }}>
+                {isConfigured ? '✓ Sincronización Automática Activa' : 'No Configurado (.env)'}
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
+              {isConfigured
+                ? 'Cada producto, venta o gasto que hagas se guarda automáticamente en la nube y se sincroniza en todos tus dispositivos.'
+                : 'Para sincronizar entre tu celular y tu PC, agrega tus credenciales de Supabase en el archivo .env.'}
+            </p>
+
+            {cloudStatusMsg && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.6rem 0.8rem',
+                borderRadius: '8px',
+                fontSize: '0.78rem',
+                marginBottom: '0.75rem',
+                backgroundColor: cloudStatusMsg.success ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                color: cloudStatusMsg.success ? '#059669' : '#dc2626',
+                border: `1px solid ${cloudStatusMsg.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+              }}>
+                {cloudStatusMsg.success ? <CheckCircle size={15} /> : <AlertTriangle size={15} />}
+                <span>{cloudStatusMsg.text}</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleTestConnection}
+              disabled={testingCloud}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.78rem', padding: '0.45rem 0.8rem' }}
+            >
+              {testingCloud ? 'Verificando...' : 'Verificar Conexión'}
+            </button>
+          </div>
+
           {/* Business Name & Subtitle */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
@@ -200,10 +280,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             />
           </div>
 
+          <div>
+            <label style={{ fontSize: '0.8rem', color: '#c084fc', display: 'block', marginBottom: '0.3rem', fontWeight: 700 }}>
+              Capital de la Empresa (Fondo base intocable)
+            </label>
+            <input
+              type="number"
+              className="glass-input"
+              value={companyCapital}
+              onChange={(e) => setCompanyCapital(Number(e.target.value))}
+              placeholder="43580"
+              style={{ borderColor: 'rgba(168, 85, 247, 0.4)', fontWeight: 700 }}
+            />
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+              Este es tu pozo base. Cada vez que hagas un Corte de Caja, el Aumento de Pozo de tus ventas se sumará aquí.
+            </p>
+          </div>
+
           {/* Data Backup Section */}
           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.2rem', marginTop: '0.5rem' }}>
             <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.8rem', color: 'var(--primary-light)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Database size={16} /> Copia de Seguridad y Datos
+              <Database size={16} /> Respaldo Manual y Restauración
             </h4>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>

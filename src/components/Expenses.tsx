@@ -10,11 +10,13 @@ interface ExpensesProps {
 }
 
 const CATEGORIES: ExpenseCategory[] = [
+  'Compra Mercadería (Inversión)',
+  'Ingreso / Aporte al Pozo',
   'Bolsas/Empaques',
   'Publicidad/Marketing',
   'Envíos/Cadetería',
-  'Mercadería/Insumos',
   'Alquiler/Servicios',
+  'Retiro (Sueldo Personal)',
   'Otros'
 ];
 
@@ -22,7 +24,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ expenses, onSaveExpense, onD
   const [isAdding, setIsAdding] = useState(false);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<ExpenseCategory>('Mercadería/Insumos');
+  const [category, setCategory] = useState<ExpenseCategory>('Compra Mercadería (Inversión)');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -43,7 +45,18 @@ export const Expenses: React.FC<ExpensesProps> = ({ expenses, onSaveExpense, onD
     setIsAdding(false);
   };
 
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const isContribution = (exp: Expense) => 
+    exp.category === 'Ingreso / Aporte al Pozo' ||
+    exp.description.toLowerCase().includes('ingreso al pozo') ||
+    exp.description.toLowerCase().includes('aporte al pozo');
+
+  const totalExpenses = expenses
+    .filter(exp => !isContribution(exp))
+    .reduce((sum, exp) => sum + exp.amount, 0);
+
+  const totalContributions = expenses
+    .filter(isContribution)
+    .reduce((sum, exp) => sum + exp.amount, 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -68,6 +81,11 @@ export const Expenses: React.FC<ExpensesProps> = ({ expenses, onSaveExpense, onD
           <h3 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#dc2626' }}>
             {settings.currency} {totalExpenses.toLocaleString()}
           </h3>
+          {totalContributions > 0 && (
+            <p style={{ fontSize: '0.8rem', color: '#34d399', fontWeight: 600, marginTop: '0.2rem' }}>
+              + {settings.currency} {totalContributions.toLocaleString()} en Aportes al Pozo
+            </p>
+          )}
         </div>
       </div>
 
@@ -129,11 +147,25 @@ export const Expenses: React.FC<ExpensesProps> = ({ expenses, onSaveExpense, onD
                     </div>
                   </td>
                   <td style={{ padding: '1rem' }}>
-                    <span className="badge badge-red">{expense.category}</span>
+                    {isContribution(expense) ? (
+                      <span className="badge" style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                        {expense.category}
+                      </span>
+                    ) : expense.category === 'Compra Mercadería (Inversión)' ? (
+                      <span className="badge" style={{ backgroundColor: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+                        {expense.category}
+                      </span>
+                    ) : (
+                      <span className="badge badge-red">{expense.category}</span>
+                    )}
                   </td>
                   <td style={{ padding: '1rem', fontWeight: 500 }}>{expense.description}</td>
-                  <td style={{ padding: '1rem', fontWeight: 700, color: '#dc2626' }}>
-                    {settings.currency} {expense.amount.toLocaleString()}
+                  <td style={{ 
+                    padding: '1rem', 
+                    fontWeight: 700, 
+                    color: isContribution(expense) ? '#34d399' : expense.category === 'Compra Mercadería (Inversión)' ? '#c084fc' : '#dc2626' 
+                  }}>
+                    {isContribution(expense) ? '+' : '-'} {settings.currency} {expense.amount.toLocaleString()}
                   </td>
                   <td style={{ padding: '1rem', textAlign: 'right' }}>
                     <button className="btn btn-danger" style={{ padding: '0.4rem' }} onClick={() => onDeleteExpense(expense.id)}>

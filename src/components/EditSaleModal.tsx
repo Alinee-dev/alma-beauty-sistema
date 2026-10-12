@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Sale, SaleItem, PaymentMethod, BusinessSettings } from '../types';
-import { X, Save, DollarSign, User, CreditCard } from 'lucide-react';
+import { X, Save, DollarSign, User, CreditCard, Tag } from 'lucide-react';
 
 interface EditSaleModalProps {
   isOpen: boolean;
@@ -21,12 +21,14 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Efectivo');
   const [total, setTotal] = useState<number>(0);
   const [items, setItems] = useState<SaleItem[]>([]);
+  const [saleDateStr, setSaleDateStr] = useState<string>('');
 
   useEffect(() => {
     if (sale) {
       setCustomerName(sale.customerName || '');
       setPaymentMethod(sale.paymentMethod);
       setTotal(sale.total);
+      setSaleDateStr(sale.date.includes('T') ? sale.date.split('T')[0] : sale.date);
       // deep copy items so we don't mutate original sale props directly
       setItems(sale.items.map(i => ({ ...i })));
     }
@@ -46,14 +48,32 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
     setTotal(newSubtotal);
   };
 
+  const handleToggleOfferLabel = (index: number) => {
+    const updatedItems = [...items];
+    const item = { ...updatedItems[index] };
+    if (item.productName.includes(' (Oferta)')) {
+      item.productName = item.productName.replace(' (Oferta)', '');
+    } else {
+      item.productName = `${item.productName} (Oferta)`;
+    }
+    updatedItems[index] = item;
+    setItems(updatedItems);
+  };
+
   const handleSave = () => {
     const newSubtotal = items.reduce((acc, i) => acc + i.total, 0);
     const totalCost = items.reduce((acc, item) => acc + item.costPrice * item.quantity, 0);
     const newDiscount = Math.max(0, newSubtotal - total);
     const newProfit = total - totalCost;
 
+    // Al editar cualquier venta, le asignamos la hora exacta de este momento.
+    // Esto asegura que si se edita hoy, quede registrada DESPUÉS del último corte de caja.
+    const timePart = new Date().toISOString().split('T')[1];
+    const newDate = `${saleDateStr}T${timePart}`;
+
     const updatedSale: Sale = {
       ...sale,
+      date: newDate,
       items,
       subtotal: newSubtotal,
       customerName: customerName.trim() || undefined,
@@ -102,6 +122,20 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
             />
           </div>
 
+          {/* Date */}
+          <div>
+            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>
+              Fecha de Venta / Cobro
+            </label>
+            <input
+              type="date"
+              className="glass-input"
+              value={saleDateStr}
+              onChange={(e) => setSaleDateStr(e.target.value)}
+              required
+            />
+          </div>
+
           {/* Payment Method */}
           <div>
             <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>
@@ -129,8 +163,14 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '150px', overflowY: 'auto' }}>
               {items.map((item, index) => (
                 <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.4)', padding: '0.4rem 0.6rem', borderRadius: '6px', fontSize: '0.8rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, paddingRight: '0.5rem' }}>
-                    <span style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.quantity}x {item.productName}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, paddingRight: '0.5rem', alignItems: 'flex-start' }}>
+                    <span style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{item.quantity}x {item.productName}</span>
+                    <button 
+                      onClick={() => handleToggleOfferLabel(index)}
+                      style={{ background: 'none', border: 'none', color: item.productName.includes(' (Oferta)') ? '#ec4899' : 'var(--text-muted)', fontSize: '0.65rem', cursor: 'pointer', padding: 0, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}
+                    >
+                      <Tag size={10} /> {item.productName.includes(' (Oferta)') ? 'Quitar etiqueta' : 'Marcar como Oferta'}
+                    </button>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontWeight: 700, color: 'var(--primary)' }}>
                     {settings.currency}

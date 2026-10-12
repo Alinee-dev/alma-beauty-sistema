@@ -41,13 +41,15 @@ export const CustomerCatalog: React.FC<CustomerCatalogProps> = ({ products, sett
     let text = `¡Hola *${settings.name}*! 👋 Me gustaría hacer un pedido:\n\n`;
 
     if (product) {
-      text += `• *${product.name}* (${settings.currency} ${product.salePrice.toLocaleString()})\n`;
+      const currentPrice = product.salePrice;
+      text += `• *${product.name}* (${settings.currency} ${currentPrice.toLocaleString()})\n`;
     } else {
       const selectedItems = Object.entries(cartCount)
         .map(([id, qty]) => {
           const p = products.find((prod) => prod.id === id);
           if (!p || qty <= 0) return null;
-          return `• ${qty}x *${p.name}* - ${settings.currency} ${(p.salePrice * qty).toLocaleString()}`;
+          const currentPrice = p.salePrice;
+          return `• ${qty}x *${p.name}* - ${settings.currency} ${(currentPrice * qty).toLocaleString()}`;
         })
         .filter(Boolean);
 
@@ -226,9 +228,11 @@ export const CustomerCatalog: React.FC<CustomerCatalogProps> = ({ products, sett
 
                 <div style={{ marginTop: '1rem', paddingTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
-                    <span style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--primary-light)' }}>
-                      {settings.currency} {product.salePrice.toLocaleString()}
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--primary-light)' }}>
+                        {settings.currency} {product.salePrice.toLocaleString()}
+                      </span>
+                    </div>
                     <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                       <CheckCircle2 size={14} /> En Stock ({product.stock} un.)
                     </span>

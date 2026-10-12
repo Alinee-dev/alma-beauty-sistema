@@ -35,6 +35,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [category, setCategory] = useState<Category>('Maquillaje');
   const [costPrice, setCostPrice] = useState<number | ''>('');
   const [salePrice, setSalePrice] = useState<number | ''>('');
+  const [offerPrice, setOfferPrice] = useState<number | ''>('');
+  const [isOfferActive, setIsOfferActive] = useState<boolean>(false);
   const [stock, setStock] = useState<number | ''>('');
   const [minStock, setMinStock] = useState<number | ''>(3);
   const [description, setDescription] = useState('');
@@ -46,6 +48,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setCategory(productToEdit.category);
       setCostPrice(productToEdit.costPrice);
       setSalePrice(productToEdit.salePrice);
+      setOfferPrice(productToEdit.offerPrice || '');
+      setIsOfferActive(productToEdit.isOfferActive || false);
       setStock(productToEdit.stock);
       setMinStock(productToEdit.minStock);
       setDescription(productToEdit.description || '');
@@ -55,6 +59,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setCategory('Maquillaje');
       setCostPrice('');
       setSalePrice('');
+      setOfferPrice('');
+      setIsOfferActive(false);
       setStock(10);
       setMinStock(3);
       setDescription('');
@@ -81,6 +87,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       category,
       costPrice: cost,
       salePrice: price,
+      offerPrice: offerPrice === '' ? undefined : Number(offerPrice),
+      isOfferActive,
       stock: Number(stock) || 0,
       minStock: Number(minStock) || 3,
       description: description.trim() || undefined,
