@@ -143,7 +143,12 @@ export const Expenses: React.FC<ExpensesProps> = ({ expenses, onSaveExpense, onD
                 <tr key={expense.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      <Calendar size={14} /> {expense.date}
+                      <Calendar size={14} />{' '}
+                      {new Date(expense.date + (expense.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-CL', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })}
                     </div>
                   </td>
                   <td style={{ padding: '1rem' }}>

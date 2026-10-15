@@ -46,6 +46,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [timeFilter, setTimeFilter] = useState<'all' | 'month' | 'today'>(
     'month'
   );
+  const [isCashCutModalOpen, setIsCashCutModalOpen] = useState(false);
+  const [cashCutAmount, setCashCutAmount] = useState('');
+  const [cashCutError, setCashCutError] = useState('');
 
   const getPaymentMethodStyle = (method: string) => {
     switch (method) {
@@ -122,13 +125,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return true;
   });
 
-  // Ventas y gastos posteriores al corte de caja
-  const cutSales = periodSales.filter(
+  // Los ciclos de caja no dependen del filtro de período del dashboard.
+  const cutSales = sales.filter(
     (s) => new Date(s.date).getTime() > lastCutTime
   );
 
-  const cutExpenses = periodExpenses.filter(
-    (e) => new Date(e.date).getTime() > lastCutTime
+  const getExpenseTimestamp = (expense: Expense): number => {
+    const idTimestamp = /^exp-(\d+)$/.exec(expense.id)?.[1];
+    return idTimestamp
+      ? Number(idTimestamp)
+      : new Date(expense.date).getTime();
+  };
+
+  const cutExpenses = expenses.filter(
+    (e) => getExpenseTimestamp(e) > lastCutTime
   );
 
   // Separar ventas pagadas de ventas fiadas
@@ -197,24 +207,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const totalNetProfit = totalGrossProfit - totalExpensesAmount;
 
-  // Compras de mercadería del periodo
-  const periodInventoryPurchases = periodExpenses
-    .filter(
-      (e) =>
-        isInventoryPurchase(e) &&
-        !isCapitalContribution(e)
-    )
-    .reduce((acc, e) => acc + e.amount, 0);
-
   // Dinero pendiente de cobro por ventas fiadas
   const totalFiado = fiadoSales.reduce(
     (acc, s) => acc + s.total,
     0
   );
-
-  // Recuperación de inversión del periodo
-  const totalRecoveredInvestment =
-    totalRevenue - totalGrossProfit - periodInventoryPurchases;
 
   // ==========================================
   // CÁLCULOS PARA SUELDO Y POZO DESDE EL CORTE
@@ -261,14 +258,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const cyclePozo =
     (cutNetProfit * (100 - personalSplit)) / 100;
 
-  // Compras de mercadería desde el último corte
-  const cycleInventoryPurchases = cutExpenses
+  // Recuperar al capital el costo de los productos vendidos en efectivo o transferencia.
+  const recoveredSalesInvestment = cutSales
     .filter(
-      (e) =>
-        isInventoryPurchase(e) &&
-        !isCapitalContribution(e)
+      (sale) =>
+        sale.paymentMethod === 'Efectivo' ||
+        sale.paymentMethod === 'Transferencia'
     )
-    .reduce((acc, e) => acc + e.amount, 0);
+    .reduce(
+      (total, sale) =>
+        total +
+        sale.items.reduce(
+          (saleCost, item) => saleCost + item.costPrice * item.quantity,
+          0
+        ),
+      0
+    );
 
   // Aportes directos al pozo desde el último corte
   const cycleContributions = cutExpenses
@@ -278,29 +283,48 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Capital inicial de la empresa
   const baseCompanyCapital = settings.companyCapital ?? 43580;
 
-  // Capital actual de la empresa
+  // Total de TODOS los gastos del ciclo (mercadería + operativos + retiros)
+  const allCutExpenses = cutExpenses
+    .filter((e) => !isCapitalContribution(e))
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  // Capital actual: saldo anterior + aportes + costos recuperados - gastos del ciclo.
   const totalCajaFisica =
     baseCompanyCapital +
     cycleContributions -
-    cycleInventoryPurchases;
+    allCutExpenses +
+    recoveredSalesInvestment;
 
   // Ejecutar corte de caja
   const handleCashCut = () => {
-    const pozoToAdd = Math.max(0, cyclePozo);
-    const newCapital = totalCajaFisica + pozoToAdd;
+    const maximumPozoToAdd = Math.max(0, cyclePozo);
+    setCashCutAmount(maximumPozoToAdd.toFixed(2));
+    setCashCutError('');
+    setIsCashCutModalOpen(true);
+  };
 
-    const confirmMsg =
-      `¿Estás segura de hacer un Corte de Caja ahora?\n\n` +
-      `• Se transferirán ${settings.currency} ${pozoToAdd.toLocaleString()} de Aumento de Pozo a la tarjeta morada de Capital de la Empresa (quedando en ${settings.currency} ${newCapital.toLocaleString()}).\n` +
-      `• Tu Sueldo disponible y el Aumento de Pozo se reiniciarán a $0 para comenzar tu nuevo ciclo de ventas.`;
-
-    if (confirm(confirmMsg)) {
-      onSaveSettings({
-        ...settings,
-        lastCashCut: new Date().toISOString(),
-        companyCapital: newCapital,
-      });
+  const confirmCashCut = () => {
+    const maximumPozoToAdd = Math.max(0, cyclePozo);
+    const pozoToAdd = Number(cashCutAmount);
+    if (
+      cashCutAmount.trim() === '' ||
+      !Number.isFinite(pozoToAdd) ||
+      pozoToAdd < 0 ||
+      pozoToAdd > maximumPozoToAdd
+    ) {
+      setCashCutError(
+        `Ingresá un monto entre 0 y ${settings.currency} ${maximumPozoToAdd.toLocaleString()}.`
+      );
+      return;
     }
+
+    const newCapital = totalCajaFisica + pozoToAdd;
+    onSaveSettings({
+      ...settings,
+      lastCashCut: new Date().toISOString(),
+      companyCapital: newCapital,
+    });
+    setIsCashCutModalOpen(false);
   };
 
   // Inventario y alertas de stock
@@ -880,7 +904,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
               onClick={handleCashCut}
             >
-              Hacer Corte de Caja (Transferir Pozo y Reiniciar Sueldo)
+              Hacer Corte de Caja (Elegir aumento y reiniciar sueldo)
             </button>
           </div>
 
@@ -1035,48 +1059,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* Recuperación de inversión */}
-          <div
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.03)',
-              padding: '1rem',
-              borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.05)',
-              borderLeft: '3px solid #60a5fa',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '0.8rem',
-                color: 'var(--text-muted)',
-                marginBottom: '0.3rem',
-              }}
-            >
-              Recuperación Inversión
-            </div>
-
-            <div
-              style={{
-                fontSize: '1.2rem',
-                fontWeight: 700,
-                color: '#60a5fa',
-              }}
-            >
-              {settings.currency}{' '}
-              {totalRecoveredInvestment.toLocaleString()}
-            </div>
-
-            <div
-              style={{
-                fontSize: '0.7rem',
-                color: 'var(--text-muted)',
-                marginTop: '0.2rem',
-              }}
-            >
-              Costo de los productos. Reponer stock.
-            </div>
-          </div>
-
           {/* Sueldo */}
           <div
             style={{
@@ -1200,7 +1182,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 marginTop: '0.2rem',
               }}
             >
-              Se sumará a la tarjeta morada al hacer Corte de Caja
+              Podés elegir cuánto sumar al capital al hacer el corte
             </div>
           </div>
 
@@ -1218,7 +1200,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               style={{
                 fontSize: '0.8rem',
                 color: 'var(--text-muted)',
-                marginBottom: '0.3rem',
+                marginBottom: '0.5rem',
                 fontWeight: 600,
               }}
             >
@@ -1227,9 +1209,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <div
               style={{
-                fontSize: '1.3rem',
+                fontSize: '1.5rem',
                 fontWeight: 800,
-                color: '#a855f7',
+                color: totalCajaFisica < 0 ? '#ef4444' : '#a855f7',
               }}
             >
               {settings.currency} {totalCajaFisica.toLocaleString()}
@@ -1237,12 +1219,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <div
               style={{
-                fontSize: '0.7rem',
+                fontSize: '0.65rem',
                 color: 'var(--text-muted)',
-                marginTop: '0.2rem',
+                marginTop: '0.5rem',
+                opacity: 0.7,
               }}
             >
-              Fondo intocable del negocio para mercadería y crecimiento
+              Incluye el costo recuperado de ventas en efectivo o transferencia, aportes y gastos registrados
             </div>
           </div>
         </div>
@@ -1580,6 +1563,121 @@ export const Dashboard: React.FC<DashboardProps> = ({
           )}
         </div>
       </div>
+
+      {isCashCutModalOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => setIsCashCutModalOpen(false)}
+        >
+          <div
+            className="glass-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cash-cut-title"
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              padding: '1.5rem',
+            }}
+          >
+            <h3
+              id="cash-cut-title"
+              className="font-serif"
+              style={{
+                fontSize: '1.3rem',
+                fontWeight: 700,
+                marginBottom: '0.5rem',
+                color: 'var(--primary)',
+              }}
+            >
+              Confirmar Corte de Caja
+            </h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
+              Elegí cuánto del Aumento de Pozo querés sumar al capital. Se
+              pueden agregar hasta {settings.currency}{' '}
+              {Math.max(0, cyclePozo).toLocaleString()}.
+            </p>
+
+            <label
+              htmlFor="cash-cut-amount"
+              style={{
+                display: 'block',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                marginBottom: '0.35rem',
+              }}
+            >
+              Monto a sumar ({settings.currency})
+            </label>
+            <input
+              id="cash-cut-amount"
+              className="glass-input"
+              type="number"
+              min="0"
+              max={Math.max(0, cyclePozo)}
+              step="0.01"
+              value={cashCutAmount}
+              onChange={(event) => {
+                setCashCutAmount(event.target.value);
+                setCashCutError('');
+              }}
+              autoFocus
+            />
+
+            {cashCutError && (
+              <p
+                role="alert"
+                style={{
+                  color: '#dc2626',
+                  fontSize: '0.8rem',
+                  marginTop: '0.4rem',
+                }}
+              >
+                {cashCutError}
+              </p>
+            )}
+
+            <p
+              style={{
+                fontSize: '0.85rem',
+                color: 'var(--text-muted)',
+                marginTop: '0.8rem',
+              }}
+            >
+              Capital después del corte:{' '}
+              <strong>
+                {settings.currency}{' '}
+                {(totalCajaFisica + (Number(cashCutAmount) || 0)).toLocaleString()}
+              </strong>
+            </p>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.6rem',
+                marginTop: '1.2rem',
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsCashCutModalOpen(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={confirmCashCut}
+              >
+                Confirmar Corte
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -282,7 +282,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <div>
             <label style={{ fontSize: '0.8rem', color: '#c084fc', display: 'block', marginBottom: '0.3rem', fontWeight: 700 }}>
-              Capital de la Empresa (Fondo base intocable)
+              Capital al último Corte de Caja
             </label>
             <input
               type="number"
@@ -293,7 +293,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               style={{ borderColor: 'rgba(168, 85, 247, 0.4)', fontWeight: 700 }}
             />
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              Este es tu pozo base. Cada vez que hagas un Corte de Caja, el Aumento de Pozo de tus ventas se sumará aquí.
+              Este saldo se ajusta con los gastos y aportes del ciclo. Al hacer el corte, elegís cuánto del Aumento de Pozo sumar.
             </p>
           </div>
 
