@@ -266,17 +266,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const cyclePozo =
     (distributableProfit * (100 - personalSplit)) / 100;
 
-  // Recuperar al capital el costo de los productos vendidos en efectivo o transferencia.
-  const recoveredSalesInvestment = cutReceipts
-    .filter(
-      ({ payment }) =>
-        payment.paymentMethod === 'Efectivo' ||
-        payment.paymentMethod === 'Transferencia'
-    )
-    .reduce(
-      (total, receipt) => total + getReceiptProductCost(receipt),
-      0
-    );
+  // Recover product cost only for amounts actually collected, regardless of payment method.
+  const recoveredSalesInvestment = cutReceipts.reduce(
+    (total, receipt) => total + getReceiptProductCost(receipt),
+    0
+  );
 
   // Aportes directos al pozo desde el último corte
   const cycleContributions = cutExpenses

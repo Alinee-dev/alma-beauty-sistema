@@ -3,6 +3,23 @@ import type { Sale, SaleItem, PaymentMethod, BusinessSettings } from '../types';
 import { X, Save, DollarSign, User, CreditCard, Tag } from 'lucide-react';
 import { getSaleOutstanding, getSalePayments } from '../services/salePayments';
 
+const toLocalDateInputValue = (value: string): string => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+  const date = new Date(value);
+  return toLocalDateInputValueFromDate(date);
+};
+
+const toLocalDateInputValueFromDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toPaymentDate = (date: string): string =>
+  new Date(`${date}T12:00:00`).toISOString();
+
 interface EditSaleModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -44,6 +61,16 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
   const [saleDateStr, setSaleDateStr] = useState<string>(
     sale.date.includes('T') ? sale.date.split('T')[0] : sale.date
   );
+  const existingPayments = getSalePayments(sale);
+  const hasLegacyPayment =
+    existingPayments.length === 1 &&
+    existingPayments[0].id.startsWith('legacy-');
+  const [paymentDateStr, setPaymentDateStr] = useState<string>(
+    existingPayments[0] && !hasLegacyPayment
+      ? toLocalDateInputValue(existingPayments[0].date)
+      : toLocalDateInputValueFromDate(new Date())
+  );
+  const [paymentDateError, setPaymentDateError] = useState('');
 
   const handleUpdateItemPrice = (index: number, newUnitPrice: number) => {
     const updatedItems = [...items];
@@ -75,24 +102,30 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
     const newDiscount = Math.max(0, newSubtotal - total);
     const newProfit = total - totalCost;
 
+    const needsPaymentDate =
+      paymentMethod !== 'Fiado' &&
+      (sale.paymentMethod === 'Fiado' || hasLegacyPayment);
+    if (needsPaymentDate && !paymentDateStr) {
+      setPaymentDateError('Seleccioná la fecha en que recibiste el pago.');
+      return;
+    }
+
     const originalTime = sale.date.includes('T')
       ? sale.date.split('T')[1].slice(0, 8)
       : '12:00:00';
     const isCollectingFiado = sale.paymentMethod === 'Fiado' && paymentMethod !== 'Fiado';
-    const paymentDate = new Date();
-    const newDate = isCollectingFiado
-      ? paymentDate.toISOString()
-      : saleDateStr === sale.date.split('T')[0]
-        ? sale.date
-        : new Date(`${saleDateStr}T${originalTime}`).toISOString();
-    const currentPayments = getSalePayments(sale);
+    const paymentDate = paymentDateStr ? toPaymentDate(paymentDateStr) : '';
+    const newDate = saleDateStr === sale.date.split('T')[0]
+      ? sale.date
+      : new Date(`${saleDateStr}T${originalTime}`).toISOString();
+    const currentPayments = existingPayments;
     const payments = isCollectingFiado
       ? [
           ...currentPayments,
           ...(getSaleOutstanding(sale) > 0
             ? [{
                 id: `payment-${sale.id}-${currentPayments.length + 1}`,
-                date: paymentDate.toISOString(),
+                date: paymentDate,
                 amount: getSaleOutstanding(sale),
                 paymentMethod,
               }]
@@ -102,6 +135,7 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
         ? []
         : currentPayments.map((payment) => ({
             ...payment,
+            ...(hasLegacyPayment ? { date: paymentDate } : {}),
             paymentMethod: paymentMethod === 'Fiado'
               ? payment.paymentMethod
               : paymentMethod,
@@ -181,7 +215,13 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
             <select
               className="glass-input"
               value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+              onChange={(e) => {
+                const nextPaymentMethod = e.target.value as PaymentMethod;
+                if (sale.paymentMethod === 'Fiado' && nextPaymentMethod !== 'Fiado') {
+                  setPaymentDateStr(toLocalDateInputValueFromDate(new Date()));
+                }
+                setPaymentMethod(nextPaymentMethod);
+              }}
             >
               <option value="Efectivo">Efectivo</option>
               <option value="Transferencia">Transferencia</option>
@@ -189,9 +229,32 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
               <option value="MercadoPago">MercadoPago</option>
               <option value="Fiado">Fiado</option>
             </select>
+            {paymentMethod !== 'Fiado' &&
+              (sale.paymentMethod === 'Fiado' || hasLegacyPayment) && (
+              <div style={{ marginTop: '0.8rem' }}>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>
+                  Fecha de cobro
+                </label>
+                <input
+                  type="date"
+                  className="glass-input"
+                  value={paymentDateStr}
+                  onChange={(e) => {
+                    setPaymentDateStr(e.target.value);
+                    setPaymentDateError('');
+                  }}
+                  required
+                />
+                {paymentDateError && (
+                  <p style={{ fontSize: '0.75rem', color: '#ef4444', margin: '0.35rem 0 0' }}>
+                    {paymentDateError}
+                  </p>
+                )}
+              </div>
+            )}
             {sale.paymentMethod === 'Fiado' && paymentMethod !== 'Fiado' && (
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.35rem 0 0' }}>
-                Se registrará el saldo como cobrado hoy por {paymentMethod} y la venta aparecerá entre las ventas de hoy.
+                Se registrará el saldo como cobrado el {paymentDateStr} por {paymentMethod}.
               </p>
             )}
           </div>

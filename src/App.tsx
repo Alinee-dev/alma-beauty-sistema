@@ -33,6 +33,7 @@ import {
   deletePersonalUseFromCloud,
   syncSettingsToCloud,
   uploadLocalDataToSupabase,
+  syncPendingSalesToCloud,
 } from './services/cloudStorage';
 
 import { Header } from './components/Header';
@@ -93,10 +94,15 @@ export function App() {
   const isCloudConnected = isSupabaseConfigured() && isAuthenticated;
 
   // Load cloud data, and auto-migrate local data if cloud is empty (first login)
-  const loadCloudData = useCallback(async (userId?: string, autoMigrate = false) => {
+  const loadCloudData = useCallback(async (
+    userId?: string,
+    autoMigrate = false,
+    includeSettings = true
+  ) => {
     if (!isSupabaseConfigured()) return;
     try {
-      const cloudData = await fetchAllCloudData();
+      await syncPendingSalesToCloud(userId);
+      const cloudData = await fetchAllCloudData(includeSettings);
       if (cloudData) {
         const cloudIsEmpty = cloudData.products.length === 0 && cloudData.sales.length === 0;
 
@@ -117,7 +123,7 @@ export function App() {
           if (cloudData.sales.length >= 0) setSales(cloudData.sales);
           if (cloudData.expenses.length >= 0) setExpenses(cloudData.expenses);
           if (cloudData.personalUse.length >= 0) setPersonalUseItems(cloudData.personalUse);
-          if (cloudData.settings) setSettings(cloudData.settings);
+          if (includeSettings && cloudData.settings) setSettings(cloudData.settings);
         }
       }
     } catch (error) {
@@ -159,7 +165,7 @@ export function App() {
           setIsAuthenticated(false);
         } else if (session?.user) {
           // TOKEN_REFRESHED or other events — just refresh data without migration
-          await loadCloudData(session.user.id, false);
+          await loadCloudData(session.user.id, false, false);
         }
       });
 
@@ -169,8 +175,8 @@ export function App() {
         .on(
           'postgres_changes',
           { event: '*', schema: 'public' },
-          () => {
-            loadCloudData();
+          (payload) => {
+            loadCloudData(undefined, false, payload.table === 'business_settings');
           }
         )
         .subscribe();
@@ -250,7 +256,7 @@ export function App() {
   };
 
   // Sales Handling & Inventory Stock Reduction
-  const handleCompleteSale = (sale: Sale) => {
+  const handleCompleteSale = async (sale: Sale) => {
     // 1. Save Sale
     const updatedSales = [sale, ...sales];
     setSales(updatedSales);
@@ -262,9 +268,6 @@ export function App() {
       if (soldItem) {
         const newStock = Math.max(0, product.stock - soldItem.quantity);
         const updatedProd = { ...product, stock: newStock };
-        if (isCloudConnected) {
-          syncProductToCloud(updatedProd, currentUser?.id);
-        }
         return updatedProd;
       }
       return product;
@@ -273,9 +276,39 @@ export function App() {
     setProducts(updatedProducts);
     saveProducts(updatedProducts);
 
-    // Sync sale to cloud
+    // Save the sale before syncing stock so failed sale writes cannot trigger
+    // a cloud refresh that replaces the sale held in local storage.
     if (isCloudConnected) {
-      syncSaleToCloud(sale, currentUser?.id);
+      const saleSyncResult = await syncSaleToCloud(sale, currentUser?.id);
+      const soldProducts = updatedProducts.filter((product) =>
+        sale.items.some((item) => item.productId === product.id)
+      );
+      const productSyncResults = await Promise.all(
+        soldProducts.map((product) =>
+          syncProductToCloud(product, currentUser?.id)
+        )
+      );
+      const failedProductSync = productSyncResults.find((result) => !result.success);
+
+      if (!saleSyncResult.success || saleSyncResult.warning || failedProductSync) {
+        const errorMessage = !saleSyncResult.success
+          ? saleSyncResult.error
+          : failedProductSync?.error;
+        alert(
+          [
+            !saleSyncResult.success
+              ? 'La venta quedó guardada en este dispositivo, pero no se pudo guardar en la nube.'
+              : saleSyncResult.warning
+                ? 'La venta se guardó en la nube con una sincronización limitada.'
+              : 'La venta quedó guardada, pero no se pudo sincronizar el stock con la nube.',
+            saleSyncResult.warning,
+            errorMessage,
+            !saleSyncResult.warning
+              ? 'La aplicación la volverá a intentar sincronizar automáticamente cuando pueda conectarse.'
+              : undefined,
+          ].filter(Boolean).join('\n\n')
+        );
+      }
     }
 
     // 3. Open Receipt Modal with Confetti
@@ -285,22 +318,26 @@ export function App() {
   };
 
   // Refund / Cancel Sale & Stock Restoration
-  const handleCancelSale = (saleId: string) => {
+  const handleCancelSale = async (saleId: string) => {
     const saleToCancel = sales.find((s) => s.id === saleId);
     if (!saleToCancel) return;
 
+    const quantitiesByProduct = saleToCancel.items.reduce((quantities, item) => {
+      quantities.set(
+        item.productId,
+        (quantities.get(item.productId) ?? 0) + item.quantity
+      );
+      return quantities;
+    }, new Map<string, number>());
+
     // Restore stock
     const updatedProducts = products.map((product) => {
-      const soldItem = saleToCancel.items.find((item) => item.productId === product.id);
-      if (soldItem) {
-        const updatedProd = {
+      const quantityToRestore = quantitiesByProduct.get(product.id);
+      if (quantityToRestore !== undefined) {
+        return {
           ...product,
-          stock: product.stock + soldItem.quantity,
+          stock: product.stock + quantityToRestore,
         };
-        if (isCloudConnected) {
-          syncProductToCloud(updatedProd, currentUser?.id);
-        }
-        return updatedProd;
       }
       return product;
     });
@@ -308,13 +345,37 @@ export function App() {
     setProducts(updatedProducts);
     saveProducts(updatedProducts);
 
-    // Remove sale
+    // Remove the sale locally before syncing so the UI responds immediately.
     const updatedSales = sales.filter((s) => s.id !== saleId);
     setSales(updatedSales);
     saveSales(updatedSales);
 
     if (isCloudConnected) {
-      deleteSaleFromCloud(saleId);
+      const saleDeleteResult = await deleteSaleFromCloud(saleId);
+      const productsToSync = updatedProducts.filter((product) =>
+        quantitiesByProduct.has(product.id)
+      );
+      const productSyncResults = await Promise.all(
+        productsToSync.map((product) =>
+          syncProductToCloud(product, currentUser?.id)
+        )
+      );
+      const failedProductSync = productSyncResults.find((result) => !result.success);
+
+      if (!saleDeleteResult.success || failedProductSync) {
+        alert(
+          [
+            'La venta se anuló en este dispositivo, pero no se pudo sincronizar completamente con la nube.',
+            !saleDeleteResult.success
+              ? `No se pudo eliminar la venta: ${saleDeleteResult.error}`
+              : undefined,
+            failedProductSync
+              ? `No se pudo actualizar el stock en la nube: ${failedProductSync.error}`
+              : undefined,
+            'Verifica tu conexión e inténtalo de nuevo.',
+          ].filter(Boolean).join('\n\n')
+        );
+      }
     }
   };
 

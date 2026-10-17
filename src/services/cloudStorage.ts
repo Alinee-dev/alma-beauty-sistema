@@ -13,6 +13,67 @@ import {
   saveSettings as saveLocalSettings
 } from './storage';
 
+const PENDING_SALES_KEY = 'aline_beauty_pending_sales_v1';
+const PENDING_SALE_DELETIONS_KEY = 'aline_beauty_pending_sale_deletions_v1';
+
+const isSale = (value: unknown): value is Sale => {
+  if (!value || typeof value !== 'object') return false;
+  const sale = value as Partial<Sale>;
+  return (
+    typeof sale.id === 'string' &&
+    typeof sale.date === 'string' &&
+    Array.isArray(sale.items) &&
+    typeof sale.total === 'number'
+  );
+};
+
+const getPendingSales = (): Sale[] => {
+  try {
+    const stored = localStorage.getItem(PENDING_SALES_KEY);
+    if (!stored) return [];
+    const parsed: unknown = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed.filter(isSale) : [];
+  } catch (error) {
+    console.error('Error loading pending sales:', error);
+    return [];
+  }
+};
+
+const savePendingSales = (sales: Sale[]): void => {
+  localStorage.setItem(PENDING_SALES_KEY, JSON.stringify(sales));
+};
+
+const getPendingSaleDeletions = (): string[] => {
+  try {
+    const stored = localStorage.getItem(PENDING_SALE_DELETIONS_KEY);
+    if (!stored) return [];
+    const parsed: unknown = JSON.parse(stored);
+    return Array.isArray(parsed)
+      ? parsed.filter((saleId): saleId is string => typeof saleId === 'string')
+      : [];
+  } catch (error) {
+    console.error('Error loading pending sale deletions:', error);
+    return [];
+  }
+};
+
+const savePendingSaleDeletions = (saleIds: string[]): void => {
+  localStorage.setItem(PENDING_SALE_DELETIONS_KEY, JSON.stringify(saleIds));
+};
+
+export interface CloudSyncResult {
+  success: boolean;
+  error?: string;
+  warning?: string;
+}
+
+const getCloudErrorMessage = (error: unknown): string =>
+  error instanceof Error
+    ? error.message
+    : typeof error === 'object' && error !== null && 'message' in error
+      ? String(error.message)
+      : 'Error desconocido al sincronizar con la nube.';
+
 // --- MAPPERS: TypeScript (camelCase) <-> Supabase (snake_case) ---
 
 interface DbProduct {
@@ -203,7 +264,8 @@ export const mapSettingsFromDb = (item: DbSettings): BusinessSettings => ({
   instagram: item.instagram || '',
   logoUrl: item.logo_url || undefined,
   lastCashCut: item.last_cash_cut || undefined,
-  companyCapital: Number(item.company_capital || 0),
+  companyCapital:
+    item.company_capital == null ? undefined : Number(item.company_capital),
 });
 
 export const mapSettingsToDb = (s: BusinessSettings, userId?: string): DbSettings => ({
@@ -223,16 +285,15 @@ export const mapSettingsToDb = (s: BusinessSettings, userId?: string): DbSetting
 
 // --- CLOUD FETCH FUNCTIONS ---
 
-export const fetchAllCloudData = async () => {
+export const fetchAllCloudData = async (includeSettings = true) => {
   if (!isSupabaseConfigured()) return null;
 
   try {
-    const [prodsRes, salesRes, expensesRes, personalRes, settingsRes] = await Promise.all([
+    const [prodsRes, salesRes, expensesRes, personalRes] = await Promise.all([
       supabase.from('products').select('*').order('created_at', { ascending: false }),
       supabase.from('sales').select('*').order('date', { ascending: false }),
       supabase.from('expenses').select('*').order('date', { ascending: false }),
       supabase.from('personal_use').select('*').order('date', { ascending: false }),
-      supabase.from('business_settings').select('*').limit(1).maybeSingle(),
     ]);
 
     if (prodsRes.error) throw prodsRes.error;
@@ -240,11 +301,66 @@ export const fetchAllCloudData = async () => {
     if (expensesRes.error) throw expensesRes.error;
     if (personalRes.error) throw personalRes.error;
 
+    const settingsRes = includeSettings
+      ? await supabase.from('business_settings').select('*').limit(1).maybeSingle()
+      : null;
+    if (settingsRes?.error) throw settingsRes.error;
+
     const products = (prodsRes.data || []).map(mapProductFromDb);
-    const sales = (salesRes.data || []).map(mapSaleFromDb);
+    const pendingSaleDeletions = new Set(getPendingSaleDeletions());
+    const cloudSales = (salesRes.data || [])
+      .map(mapSaleFromDb)
+      .filter((sale) => !pendingSaleDeletions.has(sale.id));
+    const cloudSaleIds = new Set(cloudSales.map((sale) => sale.id));
+    const pendingSales = getPendingSales();
+    const localCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recoverableLocalSales = getLocalSales().filter(
+      (sale) =>
+        /^SALE-\d{6}$/.test(sale.id) &&
+        new Date(sale.date).getTime() >= localCutoff &&
+        !cloudSaleIds.has(sale.id) &&
+        !pendingSales.some((pendingSale) => pendingSale.id === sale.id)
+    );
+    const allPendingSales = [...pendingSales, ...recoverableLocalSales];
+    if (recoverableLocalSales.length > 0) {
+      savePendingSales(allPendingSales);
+    }
+    const pendingCloudSales = allPendingSales.filter((sale) =>
+      cloudSaleIds.has(sale.id)
+    );
+    const sales = [
+      ...cloudSales,
+      ...allPendingSales.filter((sale) => !cloudSaleIds.has(sale.id)),
+    ];
+    if (pendingCloudSales.length > 0) {
+      const syncedIds = new Set(pendingCloudSales.map((sale) => sale.id));
+      savePendingSales(allPendingSales.filter((sale) => !syncedIds.has(sale.id)));
+    }
     const expenses = (expensesRes.data || []).map(mapExpenseFromDb);
     const personalUse = (personalRes.data || []).map(mapPersonalUseFromDb);
-    const settings = settingsRes.data ? mapSettingsFromDb(settingsRes.data) : null;
+    const cloudSettings = settingsRes?.data
+      ? mapSettingsFromDb(settingsRes.data)
+      : null;
+    const localSettings = getLocalSettings();
+    const localCutTime = localSettings.lastCashCut
+      ? new Date(localSettings.lastCashCut).getTime()
+      : 0;
+    const cloudCutTime = cloudSettings?.lastCashCut
+      ? new Date(cloudSettings.lastCashCut).getTime()
+      : 0;
+    const settings = cloudSettings
+      ? {
+          ...cloudSettings,
+          companyCapital:
+            localCutTime > cloudCutTime
+              ? localSettings.companyCapital
+              : cloudSettings.companyCapital ?? localSettings.companyCapital,
+          lastCashCut:
+            localCutTime > cloudCutTime
+              ? localSettings.lastCashCut
+              : cloudSettings.lastCashCut,
+        }
+      : null;
 
     // Cache locally as offline-first backup
     if (products.length > 0) saveLocalProducts(products);
@@ -262,13 +378,16 @@ export const fetchAllCloudData = async () => {
 
 // --- CLOUD SYNC MUTATIONS ---
 
-export const syncProductToCloud = async (product: Product, userId?: string) => {
-  if (!isSupabaseConfigured()) return;
+export const syncProductToCloud = async (product: Product, userId?: string): Promise<CloudSyncResult> => {
+  if (!isSupabaseConfigured()) return { success: true };
   try {
     const row = mapProductToDb(product, userId);
-    await supabase.from('products').upsert(row);
+    const { error } = await supabase.from('products').upsert(row);
+    if (error) throw error;
+    return { success: true };
   } catch (error) {
     console.error('Error syncing product to cloud:', error);
+    return { success: false, error: getCloudErrorMessage(error) };
   }
 };
 
@@ -281,22 +400,95 @@ export const deleteProductFromCloud = async (productId: string) => {
   }
 };
 
-export const syncSaleToCloud = async (sale: Sale, userId?: string) => {
-  if (!isSupabaseConfigured()) return;
+export const syncSaleToCloud = async (sale: Sale, userId?: string): Promise<CloudSyncResult> => {
+  if (getPendingSaleDeletions().includes(sale.id)) return { success: true };
+  if (!isSupabaseConfigured()) return { success: true };
   try {
     const row = mapSaleToDb(sale, userId);
-    await supabase.from('sales').upsert(row);
+    let warning: string | undefined;
+    let { error } = await supabase.from('sales').upsert(row);
+
+    if (
+      error &&
+      error.message.includes("Could not find the 'payments' column of 'sales' in the schema cache")
+    ) {
+      const legacyRow = { ...row };
+      delete legacyRow.payments;
+      const retry = await supabase.from('sales').upsert(legacyRow);
+      error = retry.error;
+      if (!error) {
+        warning =
+          "La venta se guardó en la nube, pero los pagos aún no se sincronizaron. Ejecuta en Supabase: ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS payments JSONB NOT NULL DEFAULT '[]'::jsonb;. La aplicación reintentará sincronizarlos después.";
+      }
+    }
+    if (error) throw error;
+
+    if (getPendingSaleDeletions().includes(sale.id)) {
+      return deleteSaleFromCloud(sale.id);
+    }
+    if (!warning) {
+      const pendingSales = getPendingSales().filter(
+        (pendingSale) => pendingSale.id !== sale.id
+      );
+      savePendingSales(pendingSales);
+    }
+    return { success: true, warning };
   } catch (error) {
     console.error('Error syncing sale to cloud:', error);
+    try {
+      if (!getPendingSaleDeletions().includes(sale.id)) {
+        const pendingSales = getPendingSales();
+        savePendingSales([
+          sale,
+          ...pendingSales.filter((pendingSale) => pendingSale.id !== sale.id),
+        ]);
+      }
+    } catch (storageError) {
+      console.error('Error preserving unsynced sale locally:', storageError);
+    }
+    return { success: false, error: getCloudErrorMessage(error) };
   }
 };
 
-export const deleteSaleFromCloud = async (saleId: string) => {
-  if (!isSupabaseConfigured()) return;
+export const syncPendingSalesToCloud = async (userId?: string): Promise<void> => {
+  for (const saleId of getPendingSaleDeletions()) {
+    try {
+      const { error } = await supabase.from('sales').delete().eq('id', saleId);
+      if (error) throw error;
+      savePendingSaleDeletions(
+        getPendingSaleDeletions().filter((pendingSaleId) => pendingSaleId !== saleId)
+      );
+    } catch (error) {
+      console.error('Error retrying pending sale deletion:', error);
+    }
+  }
+
+  for (const sale of getPendingSales()) {
+    await syncSaleToCloud(sale, userId);
+  }
+};
+
+export const deleteSaleFromCloud = async (saleId: string): Promise<CloudSyncResult> => {
   try {
-    await supabase.from('sales').delete().eq('id', saleId);
+    const pendingSales = getPendingSales().filter(
+      (pendingSale) => pendingSale.id !== saleId
+    );
+    savePendingSales(pendingSales);
+
+    if (!isSupabaseConfigured()) return { success: true };
+    savePendingSaleDeletions([
+      ...new Set([...getPendingSaleDeletions(), saleId]),
+    ]);
+
+    const { error } = await supabase.from('sales').delete().eq('id', saleId);
+    if (error) throw error;
+    savePendingSaleDeletions(
+      getPendingSaleDeletions().filter((pendingSaleId) => pendingSaleId !== saleId)
+    );
+    return { success: true };
   } catch (error) {
     console.error('Error deleting sale from cloud:', error);
+    return { success: false, error: getCloudErrorMessage(error) };
   }
 };
 

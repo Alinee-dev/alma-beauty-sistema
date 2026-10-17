@@ -6,7 +6,7 @@ export interface SaleReceipt {
 }
 
 export const getSalePayments = (sale: Sale): SalePayment[] => {
-  if (sale.payments) return sale.payments;
+  if (sale.payments?.length) return sale.payments;
   if (sale.paymentMethod === 'Fiado') return [];
 
   return [{

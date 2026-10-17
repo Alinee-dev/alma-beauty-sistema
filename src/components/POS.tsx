@@ -15,7 +15,7 @@ import {
 interface POSProps {
   products: Product[];
   settings: BusinessSettings;
-  onCompleteSale: (sale: Sale) => void;
+  onCompleteSale: (sale: Sale) => void | Promise<void>;
 }
 
 const CATEGORIES: Category[] = [
@@ -40,6 +40,7 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Efectivo');
   const [notes, setNotes] = useState('');
+  const [isCompletingSale, setIsCompletingSale] = useState(false);
 
   // Filter products
   const filteredProducts = products.filter((p) => {
@@ -137,11 +138,12 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
   const totalCost = cart.reduce((acc, item) => acc + item.product.costPrice * item.quantity, 0);
   const netProfit = totalAmount - totalCost;
 
-  const handleCheckout = () => {
-    if (cart.length === 0) return;
+  const handleCheckout = async () => {
+    if (cart.length === 0 || isCompletingSale) return;
+    setIsCompletingSale(true);
 
     const saleDate = new Date().toISOString();
-    const saleId = `SALE-${Date.parse(saleDate).toString().slice(-6)}`;
+    const saleId = `SALE-${crypto.randomUUID()}`;
     const saleItems = cart.map((item) => ({
       productId: item.product.id,
       productName: item.product.name,
@@ -174,8 +176,15 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
       notes: notes.trim() || undefined,
     };
 
-    onCompleteSale(newSale);
-    clearCart();
+    try {
+      await onCompleteSale(newSale);
+      clearCart();
+    } catch (error) {
+      console.error('Error completing sale:', error);
+      alert('No se pudo completar la venta. El carrito sigue disponible para intentar nuevamente.');
+    } finally {
+      setIsCompletingSale(false);
+    }
   };
 
   return (
@@ -539,10 +548,15 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
             <button
               className="btn btn-primary"
               onClick={handleCheckout}
+              disabled={isCompletingSale}
               style={{ width: '100%', padding: '0.85rem', fontSize: '1rem', fontWeight: 700, borderRadius: '10px' }}
             >
               <CheckCircle2 size={20} />
-              <span>COMPLETAR VENTA ({settings.currency} {totalAmount.toLocaleString()})</span>
+              <span>
+                {isCompletingSale
+                  ? 'GUARDANDO VENTA...'
+                  : `COMPLETAR VENTA (${settings.currency} ${totalAmount.toLocaleString()})`}
+              </span>
             </button>
 
           </div>
