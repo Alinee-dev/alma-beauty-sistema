@@ -140,6 +140,8 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
   const handleCheckout = () => {
     if (cart.length === 0) return;
 
+    const saleDate = new Date().toISOString();
+    const saleId = `SALE-${Date.parse(saleDate).toString().slice(-6)}`;
     const saleItems = cart.map((item) => ({
       productId: item.product.id,
       productName: item.product.name,
@@ -151,14 +153,22 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
     }));
 
     const newSale: Sale = {
-      id: `SALE-${Date.now().toString().slice(-6)}`,
-      date: new Date().toISOString(),
+      id: saleId,
+      date: saleDate,
       items: saleItems,
       subtotal: rawSubtotal,
       discount: discountAmount,
       total: totalAmount,
       profit: netProfit,
       paymentMethod,
+      payments: paymentMethod === 'Fiado'
+        ? []
+        : [{
+            id: `payment-${saleId}`,
+            date: saleDate,
+            amount: totalAmount,
+            paymentMethod,
+          }],
       customerName: customerName.trim() || undefined,
       customerPhone: customerPhone.trim() || undefined,
       notes: notes.trim() || undefined,

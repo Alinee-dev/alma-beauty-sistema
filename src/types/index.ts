@@ -42,6 +42,13 @@ export interface SaleItem {
   total: number;
 }
 
+export interface SalePayment {
+  id: string;
+  date: string;
+  amount: number;
+  paymentMethod: Exclude<PaymentMethod, 'Fiado'>;
+}
+
 export interface Sale {
   id: string;
   date: string; // ISO string
@@ -51,6 +58,7 @@ export interface Sale {
   total: number;
   profit: number;
   paymentMethod: PaymentMethod;
+  payments?: SalePayment[];
   customerName?: string;
   customerPhone?: string;
   notes?: string;

@@ -7,6 +7,12 @@ import type {
   ActiveTab,
 } from '../types';
 import {
+  getReceiptProductCost,
+  getReceiptProfit,
+  getSaleOutstanding,
+  getSaleReceipts,
+} from '../services/salePayments';
+import {
   DollarSign,
   TrendingUp,
   PackageCheck,
@@ -93,42 +99,57 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // Filtro de tiempo
   const now = new Date();
-  const currentMonthStr = now.toISOString().slice(0, 7);
-  const todayStr = now.toISOString().split('T')[0];
+  const getLocalDateKey = (value: string | Date): string => {
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return value;
+    }
+    const date = value instanceof Date ? value : new Date(value);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const todayStr = getLocalDateKey(now);
+  const currentMonthStr = todayStr.slice(0, 7);
 
   // Último corte de caja
   const lastCutTime = settings.lastCashCut
     ? new Date(settings.lastCashCut).getTime()
     : 0;
+  const lastCutLabel = settings.lastCashCut
+    ? new Date(settings.lastCashCut).toLocaleString('es-CL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'Sin cortes registrados';
 
   const periodSales = sales.filter((s) => {
     if (timeFilter === 'month') {
-      return s.date.startsWith(currentMonthStr);
+      return getLocalDateKey(s.date).startsWith(currentMonthStr);
     }
 
     if (timeFilter === 'today') {
-      return s.date.startsWith(todayStr);
+      return getLocalDateKey(s.date) === todayStr;
     }
 
     return true;
   });
+  const allReceipts = getSaleReceipts(sales);
 
   const periodExpenses = expenses.filter((e) => {
     if (timeFilter === 'month') {
-      return e.date.startsWith(currentMonthStr);
+      return getLocalDateKey(e.date).startsWith(currentMonthStr);
     }
 
     if (timeFilter === 'today') {
-      return e.date.startsWith(todayStr);
+      return getLocalDateKey(e.date) === todayStr;
     }
 
     return true;
   });
-
-  // Los ciclos de caja no dependen del filtro de período del dashboard.
-  const cutSales = sales.filter(
-    (s) => new Date(s.date).getTime() > lastCutTime
-  );
 
   const getExpenseTimestamp = (expense: Expense): number => {
     const idTimestamp = /^exp-(\d+)$/.exec(expense.id)?.[1];
@@ -141,35 +162,36 @@ export const Dashboard: React.FC<DashboardProps> = ({
     (e) => getExpenseTimestamp(e) > lastCutTime
   );
 
-  // Separar ventas pagadas de ventas fiadas
-  const paidSales = periodSales.filter(
-    (s) => s.paymentMethod !== 'Fiado'
-  );
+  const periodReceipts = allReceipts.filter((receipt) => {
+    if (timeFilter === 'month') {
+      return getLocalDateKey(receipt.payment.date).startsWith(currentMonthStr);
+    }
+    if (timeFilter === 'today') {
+      return getLocalDateKey(receipt.payment.date) === todayStr;
+    }
+    return true;
+  });
+  const fiadoSales = periodSales.filter((sale) => getSaleOutstanding(sale) > 0);
 
-  const fiadoSales = periodSales.filter(
-    (s) => s.paymentMethod === 'Fiado'
+  const todayReceipts = allReceipts.filter((receipt) =>
+    getLocalDateKey(receipt.payment.date) === todayStr
   );
-
-  // Ventas pagadas de hoy
-  const todayPaidSales = sales.filter(
-    (s) =>
-      s.paymentMethod !== 'Fiado' &&
-      s.date.startsWith(todayStr)
-  );
-
-  const todayRevenue = todayPaidSales.reduce(
-    (acc, s) => acc + s.total,
+  const todayRevenue = todayReceipts.reduce(
+    (acc, receipt) => acc + receipt.payment.amount,
     0
+  );
+  const todayPaidSales = new Set(
+    todayReceipts.map((receipt) => receipt.sale.id)
   );
 
   // Cálculos del periodo
-  const totalRevenue = paidSales.reduce(
-    (acc, s) => acc + s.total,
+  const totalRevenue = periodReceipts.reduce(
+    (acc, receipt) => acc + receipt.payment.amount,
     0
   );
 
-  const totalGrossProfit = paidSales.reduce(
-    (acc, s) => acc + s.profit,
+  const totalGrossProfit = periodReceipts.reduce(
+    (acc, receipt) => acc + getReceiptProfit(receipt),
     0
   );
 
@@ -208,8 +230,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const totalNetProfit = totalGrossProfit - totalExpensesAmount;
 
   // Dinero pendiente de cobro por ventas fiadas
-  const totalFiado = fiadoSales.reduce(
-    (acc, s) => acc + s.total,
+  const totalFiado = periodSales.reduce(
+    (acc, sale) => acc + getSaleOutstanding(sale),
     0
   );
 
@@ -217,20 +239,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // CÁLCULOS PARA SUELDO Y POZO DESDE EL CORTE
   // ==========================================
 
-  const cutPaidSales = cutSales.filter(
-    (s) => s.paymentMethod !== 'Fiado'
+  const cutReceipts = allReceipts.filter(
+    (receipt) => new Date(receipt.payment.date).getTime() > lastCutTime
   );
 
-  const cutGrossProfit = cutPaidSales.reduce(
-    (acc, s) => acc + s.profit,
+  const cutGrossProfit = cutReceipts.reduce(
+    (acc, receipt) => acc + getReceiptProfit(receipt),
     0
-  );
-
-  const cutOperatingExpenses = cutExpenses.filter(
-    (e) =>
-      e.category !== 'Retiro (Sueldo Personal)' &&
-      !isInventoryPurchase(e) &&
-      !isCapitalContribution(e)
   );
 
   const cutWithdrawnSalary = cutExpenses
@@ -239,39 +254,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
     )
     .reduce((acc, e) => acc + e.amount, 0);
 
-  const cutExpensesAmount = cutOperatingExpenses.reduce(
-    (acc, e) => acc + e.amount,
-    0
-  );
-
-  const cutNetProfit = cutGrossProfit - cutExpensesAmount;
-
-  // Sueldo correspondiente al ciclo actual
-  const personalAmount = (cutNetProfit * personalSplit) / 100;
+  // Distribute collected sales profit; operating expenses are accounted for in company capital.
+  const distributableProfit = Math.max(0, cutGrossProfit);
+  const personalAmount = (distributableProfit * personalSplit) / 100;
 
   const availableSalary = Math.max(
     0,
     personalAmount - cutWithdrawnSalary
   );
 
-  // Aumento del pozo correspondiente al ciclo actual
   const cyclePozo =
-    (cutNetProfit * (100 - personalSplit)) / 100;
+    (distributableProfit * (100 - personalSplit)) / 100;
 
   // Recuperar al capital el costo de los productos vendidos en efectivo o transferencia.
-  const recoveredSalesInvestment = cutSales
+  const recoveredSalesInvestment = cutReceipts
     .filter(
-      (sale) =>
-        sale.paymentMethod === 'Efectivo' ||
-        sale.paymentMethod === 'Transferencia'
+      ({ payment }) =>
+        payment.paymentMethod === 'Efectivo' ||
+        payment.paymentMethod === 'Transferencia'
     )
     .reduce(
-      (total, sale) =>
-        total +
-        sale.items.reduce(
-          (saleCost, item) => saleCost + item.costPrice * item.quantity,
-          0
-        ),
+      (total, receipt) => total + getReceiptProductCost(receipt),
       0
     );
 
@@ -580,8 +583,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
               marginTop: '0.4rem',
             }}
           >
-            {todayPaidSales.length}{' '}
-            {todayPaidSales.length === 1
+            {todayPaidSales.size}{' '}
+            {todayPaidSales.size === 1
               ? 'venta cobrada hoy'
               : 'ventas cobradas hoy'}
           </p>
@@ -888,24 +891,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 marginTop: '0.3rem',
               }}
             >
-              Define qué porcentaje de tu{' '}
-              <strong>Ganancia Neta</strong> es para tu sueldo y cuánto
-              se reinvierte en comprar más mercadería.
+              Define cómo repartir la ganancia neta acumulada desde el último
+              corte, incluyendo los cobros recibidos hoy: qué porcentaje es
+              para tu sueldo y cuánto se destina al pozo.
             </p>
 
-            <button
-              className="btn btn-secondary"
-              style={{
-                marginTop: '0.8rem',
-                padding: '0.4rem 0.8rem',
-                fontSize: '0.8rem',
-                borderColor: 'rgba(239, 68, 68, 0.3)',
-                color: '#ef4444',
-              }}
-              onClick={handleCashCut}
-            >
-              Hacer Corte de Caja (Elegir aumento y reiniciar sueldo)
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.8rem' }}>
+              <button
+                className="btn btn-secondary"
+                style={{
+                  padding: '0.4rem 0.8rem',
+                  fontSize: '0.8rem',
+                  borderColor: 'rgba(239, 68, 68, 0.3)',
+                  color: '#ef4444',
+                }}
+                onClick={handleCashCut}
+              >
+                Hacer Corte de Caja (Elegir aumento y reiniciar sueldo)
+              </button>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Último corte: {lastCutLabel}
+              </span>
+            </div>
           </div>
 
           <div
@@ -1096,7 +1103,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {Math.max(0, personalAmount).toLocaleString()}
             </div>
 
-            {availableSalary > 0 && (
+            {availableSalary > 0 && availableSalary < personalAmount && (
               <div
                 style={{
                   fontSize: '1.2rem',
@@ -1119,30 +1126,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             )}
 
-            <div
-              style={{
-                fontSize: '0.7rem',
-                color: 'var(--text-muted)',
-                marginTop: '0.4rem',
-              }}
-            >
-              {cutWithdrawnSalary > 0
-                ? `Ya retiraste ${settings.currency} ${cutWithdrawnSalary.toLocaleString()}`
-                : 'Aún no has registrado retiros'}
-            </div>
-
-            {lastCutTime > 0 && (
-              <div
-                style={{
-                  fontSize: '0.65rem',
-                  color: '#f472b6',
-                  marginTop: '0.4rem',
-                  opacity: 0.8,
-                }}
-              >
-                *Calculado desde tu último Corte de Caja
-              </div>
-            )}
           </div>
 
           {/* Aumento del pozo */}
@@ -1169,21 +1152,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
               style={{
                 fontSize: '1.2rem',
                 fontWeight: 700,
-                color: cyclePozo < 0 ? '#ef4444' : '#34d399',
+                color: '#34d399',
               }}
             >
               {settings.currency} {cyclePozo.toLocaleString()}
             </div>
 
-            <div
-              style={{
-                fontSize: '0.7rem',
-                color: 'var(--text-muted)',
-                marginTop: '0.2rem',
-              }}
-            >
-              Podés elegir cuánto sumar al capital al hacer el corte
-            </div>
           </div>
 
           {/* Capital de la empresa */}

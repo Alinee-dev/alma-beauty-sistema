@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   Edit
 } from 'lucide-react';
+import { getSaleOutstanding, getSalePaidAmount } from '../services/salePayments';
 
 interface SalesHistoryProps {
   sales: Sale[];
@@ -17,6 +18,8 @@ interface SalesHistoryProps {
   onCancelSale: (saleId: string) => void;
   onEditSale: (sale: Sale) => void;
 }
+
+type SortBy = 'newest' | 'oldest' | 'highest' | 'lowest';
 
 export const SalesHistory: React.FC<SalesHistoryProps> = ({
   sales,
@@ -27,7 +30,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('Todos');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
+  const [sortBy, setSortBy] = useState<SortBy>('newest');
 
   const getPaymentMethodStyle = (method: string) => {
     switch (method) {
@@ -155,7 +158,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
           className="glass-input"
           style={{ width: '180px', cursor: 'pointer' }}
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as any)}
+          onChange={(e) => setSortBy(e.target.value as SortBy)}
         >
           <option value="newest">Más recientes</option>
           <option value="oldest">Más antiguas</option>
@@ -186,6 +189,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
             </thead>
             <tbody>
               {sortedAndFilteredSales.map((sale) => {
+                const outstanding = getSaleOutstanding(sale);
                 const dateObj = new Date(sale.date);
                 const formattedDate = dateObj.toLocaleDateString('es-AR', {
                   day: '2-digit',
@@ -229,6 +233,13 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
                       <span className="badge" style={{ fontSize: '0.72rem', ...getPaymentMethodStyle(sale.paymentMethod) }}>
                         <CreditCard size={11} /> {sale.paymentMethod}
                       </span>
+                      {sale.paymentMethod === 'Fiado' && (
+                        <div style={{ fontSize: '0.72rem', color: outstanding > 0 ? '#f87171' : '#34d399', marginTop: '0.25rem' }}>
+                          {outstanding > 0
+                            ? `Cobrado: ${settings.currency} ${getSalePaidAmount(sale).toLocaleString()} · Pendiente: ${settings.currency} ${outstanding.toLocaleString()}`
+                            : 'Saldo pagado'}
+                        </div>
+                      )}
                     </td>
 
                     <td style={{ padding: '0.8rem 0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>
@@ -253,7 +264,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
                           className="btn btn-secondary"
                           style={{ padding: '0.4rem 0.65rem', fontSize: '0.8rem' }}
                           onClick={() => onEditSale(sale)}
-                          title="Editar precio, cliente o método de pago"
+                          title="Editar datos de la venta"
                         >
                           <Edit size={15} />
                         </button>

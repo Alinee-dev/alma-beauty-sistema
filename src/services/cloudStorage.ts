@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { Product, Sale, Expense, PersonalUseItem, BusinessSettings } from '../types';
+import type { Product, Sale, SalePayment, Expense, PersonalUseItem, BusinessSettings } from '../types';
 import { 
   getProducts as getLocalProducts, 
   saveProducts as saveLocalProducts,
@@ -40,6 +40,7 @@ interface DbSale {
   total: number;
   profit: number;
   payment_method: string;
+  payments?: unknown;
   customer_name?: string | null;
   customer_phone?: string | null;
   notes?: string | null;
@@ -124,6 +125,9 @@ export const mapSaleFromDb = (item: DbSale): Sale => ({
   total: Number(item.total || 0),
   profit: Number(item.profit || 0),
   paymentMethod: item.payment_method as Sale['paymentMethod'],
+  payments: Array.isArray(item.payments)
+    ? item.payments as SalePayment[]
+    : undefined,
   customerName: item.customer_name || undefined,
   customerPhone: item.customer_phone || undefined,
   notes: item.notes || undefined,
@@ -138,6 +142,7 @@ export const mapSaleToDb = (s: Sale, userId?: string): DbSale => ({
   total: s.total,
   profit: s.profit,
   payment_method: s.paymentMethod,
+  payments: s.payments ?? [],
   customer_name: s.customerName ?? null,
   customer_phone: s.customerPhone ?? null,
   notes: s.notes ?? null,

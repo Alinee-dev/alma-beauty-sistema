@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Sale, SaleItem, PaymentMethod, BusinessSettings } from '../types';
 import { X, Save, DollarSign, User, CreditCard, Tag } from 'lucide-react';
+import { getSaleOutstanding, getSalePayments } from '../services/salePayments';
 
 interface EditSaleModalProps {
   isOpen: boolean;
@@ -14,27 +15,35 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
   isOpen,
   onClose,
   sale,
+  ...props
+}) => {
+  if (!isOpen || !sale) return null;
+
+  return (
+    <EditSaleForm
+      key={sale.id}
+      sale={sale}
+      onClose={onClose}
+      {...props}
+    />
+  );
+};
+
+type EditSaleFormProps = Omit<EditSaleModalProps, 'isOpen' | 'sale'> & { sale: Sale };
+
+const EditSaleForm: React.FC<EditSaleFormProps> = ({
+  onClose,
+  sale,
   settings,
   onSave,
 }) => {
-  const [customerName, setCustomerName] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Efectivo');
-  const [total, setTotal] = useState<number>(0);
-  const [items, setItems] = useState<SaleItem[]>([]);
-  const [saleDateStr, setSaleDateStr] = useState<string>('');
-
-  useEffect(() => {
-    if (sale) {
-      setCustomerName(sale.customerName || '');
-      setPaymentMethod(sale.paymentMethod);
-      setTotal(sale.total);
-      setSaleDateStr(sale.date.includes('T') ? sale.date.split('T')[0] : sale.date);
-      // deep copy items so we don't mutate original sale props directly
-      setItems(sale.items.map(i => ({ ...i })));
-    }
-  }, [sale]);
-
-  if (!isOpen || !sale) return null;
+  const [customerName, setCustomerName] = useState(sale.customerName || '');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(sale.paymentMethod);
+  const [total, setTotal] = useState<number>(sale.total);
+  const [items, setItems] = useState<SaleItem[]>(() => sale.items.map((item) => ({ ...item })));
+  const [saleDateStr, setSaleDateStr] = useState<string>(
+    sale.date.includes('T') ? sale.date.split('T')[0] : sale.date
+  );
 
   const handleUpdateItemPrice = (index: number, newUnitPrice: number) => {
     const updatedItems = [...items];
@@ -66,10 +75,37 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
     const newDiscount = Math.max(0, newSubtotal - total);
     const newProfit = total - totalCost;
 
-    // Al editar cualquier venta, le asignamos la hora exacta de este momento.
-    // Esto asegura que si se edita hoy, quede registrada DESPUÉS del último corte de caja.
-    const timePart = new Date().toISOString().split('T')[1];
-    const newDate = `${saleDateStr}T${timePart}`;
+    const originalTime = sale.date.includes('T')
+      ? sale.date.split('T')[1].slice(0, 8)
+      : '12:00:00';
+    const isCollectingFiado = sale.paymentMethod === 'Fiado' && paymentMethod !== 'Fiado';
+    const paymentDate = new Date();
+    const newDate = isCollectingFiado
+      ? paymentDate.toISOString()
+      : saleDateStr === sale.date.split('T')[0]
+        ? sale.date
+        : new Date(`${saleDateStr}T${originalTime}`).toISOString();
+    const currentPayments = getSalePayments(sale);
+    const payments = isCollectingFiado
+      ? [
+          ...currentPayments,
+          ...(getSaleOutstanding(sale) > 0
+            ? [{
+                id: `payment-${sale.id}-${currentPayments.length + 1}`,
+                date: paymentDate.toISOString(),
+                amount: getSaleOutstanding(sale),
+                paymentMethod,
+              }]
+            : []),
+        ]
+      : paymentMethod === 'Fiado' && sale.paymentMethod !== 'Fiado'
+        ? []
+        : currentPayments.map((payment) => ({
+            ...payment,
+            paymentMethod: paymentMethod === 'Fiado'
+              ? payment.paymentMethod
+              : paymentMethod,
+          }));
 
     const updatedSale: Sale = {
       ...sale,
@@ -78,6 +114,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
       subtotal: newSubtotal,
       customerName: customerName.trim() || undefined,
       paymentMethod,
+      payments,
       total: total,
       discount: newDiscount,
       profit: newProfit
@@ -125,7 +162,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
           {/* Date */}
           <div>
             <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>
-              Fecha de Venta / Cobro
+              Fecha de Venta
             </label>
             <input
               type="date"
@@ -136,7 +173,6 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
             />
           </div>
 
-          {/* Payment Method */}
           <div>
             <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>
               <CreditCard size={14} style={{ display: 'inline', marginRight: '4px' }} />
@@ -153,6 +189,11 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
               <option value="MercadoPago">MercadoPago</option>
               <option value="Fiado">Fiado</option>
             </select>
+            {sale.paymentMethod === 'Fiado' && paymentMethod !== 'Fiado' && (
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.35rem 0 0' }}>
+                Se registrará el saldo como cobrado hoy por {paymentMethod} y la venta aparecerá entre las ventas de hoy.
+              </p>
+            )}
           </div>
 
           {/* Items Edit */}

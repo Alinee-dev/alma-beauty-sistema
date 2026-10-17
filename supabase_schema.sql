@@ -34,11 +34,25 @@ CREATE TABLE IF NOT EXISTS public.sales (
   total NUMERIC(12, 2) NOT NULL DEFAULT 0,
   profit NUMERIC(12, 2) NOT NULL DEFAULT 0,
   payment_method TEXT NOT NULL DEFAULT 'Efectivo',
+  payments JSONB NOT NULL DEFAULT '[]'::jsonb,
   customer_name TEXT,
   customer_phone TEXT,
   notes TEXT,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE
 );
+
+ALTER TABLE public.sales
+  ADD COLUMN IF NOT EXISTS payments JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+UPDATE public.sales
+SET payments = jsonb_build_array(jsonb_build_object(
+  'id', 'legacy-' || id,
+  'date', date,
+  'amount', total,
+  'paymentMethod', payment_method
+))
+WHERE payment_method <> 'Fiado'
+  AND jsonb_array_length(payments) = 0;
 
 -- 3. TABLA: GASTOS DEL NEGOCIO
 CREATE TABLE IF NOT EXISTS public.expenses (
