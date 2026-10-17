@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Product, Category, BusinessSettings } from '../types';
 import { X, Save, Sparkles } from 'lucide-react';
+import { roundPesos } from '../services/money';
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -46,9 +47,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     if (productToEdit) {
       setName(productToEdit.name);
       setCategory(productToEdit.category);
-      setCostPrice(productToEdit.costPrice);
-      setSalePrice(productToEdit.salePrice);
-      setOfferPrice(productToEdit.offerPrice || '');
+      setCostPrice(roundPesos(productToEdit.costPrice));
+      setSalePrice(roundPesos(productToEdit.salePrice));
+      setOfferPrice(productToEdit.offerPrice ? roundPesos(productToEdit.offerPrice) : '');
       setIsOfferActive(productToEdit.isOfferActive || false);
       setStock(productToEdit.stock);
       setMinStock(productToEdit.minStock);
@@ -70,8 +71,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   if (!isOpen) return null;
 
-  const cost = Number(costPrice) || 0;
-  const price = Number(salePrice) || 0;
+  const cost = roundPesos(Number(costPrice) || 0);
+  const price = roundPesos(Number(salePrice) || 0);
   const profit = price - cost;
   const marginPct = price > 0 ? Math.round((profit / price) * 100) : 0;
 
@@ -87,7 +88,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       category,
       costPrice: cost,
       salePrice: price,
-      offerPrice: offerPrice === '' ? undefined : Number(offerPrice),
+      offerPrice: offerPrice === '' ? undefined : roundPesos(Number(offerPrice)),
       isOfferActive,
       stock: Number(stock) || 0,
       minStock: Number(minStock) || 3,
@@ -178,9 +179,10 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <input
                   type="number"
                   min="0"
+                  step="1"
                   className="glass-input"
                   value={costPrice}
-                  onChange={(e) => setCostPrice(e.target.value ? Number(e.target.value) : '')}
+                  onChange={(e) => setCostPrice(e.target.value ? roundPesos(Number(e.target.value)) : '')}
                   placeholder="0"
                 />
               </div>
@@ -192,10 +194,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <input
                   type="number"
                   min="0"
+                  step="1"
                   className="glass-input"
                   style={{ borderColor: 'var(--primary)', fontWeight: 700 }}
                   value={salePrice}
-                  onChange={(e) => setSalePrice(e.target.value ? Number(e.target.value) : '')}
+                  onChange={(e) => setSalePrice(e.target.value ? roundPesos(Number(e.target.value)) : '')}
                   placeholder="0"
                   required
                 />
@@ -221,6 +224,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               <input
                 type="number"
                 min="0"
+                step="1"
                 className="glass-input"
                 value={stock}
                 onChange={(e) => setStock(e.target.value ? Number(e.target.value) : '')}
@@ -235,6 +239,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               <input
                 type="number"
                 min="1"
+                step="1"
                 className="glass-input"
                 value={minStock}
                 onChange={(e) => setMinStock(e.target.value ? Number(e.target.value) : '')}

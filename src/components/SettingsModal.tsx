@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { BusinessSettings } from '../types';
+import { roundPesos } from '../services/money';
 import { X, Save, Download, Upload, RotateCcw, Settings, Database, Cloud, CheckCircle, AlertTriangle } from 'lucide-react';
 import { exportDataJSON, importDataJSON, resetToDefaultData } from '../services/storage';
 import { isSupabaseConfigured, testConnection } from '../services/supabase';
@@ -288,7 +289,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               type="number"
               className="glass-input"
               value={companyCapital}
-              onChange={(e) => setCompanyCapital(Number(e.target.value))}
+              step="1"
+              onChange={(e) => setCompanyCapital(roundPesos(Number(e.target.value)))}
               placeholder="43580"
               style={{ borderColor: 'rgba(168, 85, 247, 0.4)', fontWeight: 700 }}
             />

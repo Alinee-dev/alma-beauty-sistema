@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Product, Sale, BusinessSettings, ActiveTab, Expense, PersonalUseItem } from './types';
+import type { Product, Sale, BusinessSettings, ActiveTab, Expense, PersonalUseItem, PaymentMethod } from './types';
 import { 
   getProducts, 
   saveProducts, 
@@ -20,6 +20,7 @@ import {
   signOut as supabaseSignOut 
 } from './services/supabase';
 import type { User } from '@supabase/supabase-js';
+import { getSaleOutstanding, getSalePayments } from './services/salePayments';
 
 import {
   fetchAllCloudData,
@@ -389,6 +390,69 @@ export function App() {
     }
   };
 
+  const handleCollectFiadoAccount = async (
+    accountSales: Sale[],
+    amount: number,
+    paymentMethod: Exclude<PaymentMethod, 'Fiado'>,
+    date: string
+  ) => {
+    const accountSaleIds = new Set(accountSales.map((sale) => sale.id));
+    const currentAccountSales = sales
+      .filter((sale) => accountSaleIds.has(sale.id) && sale.paymentMethod === 'Fiado')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const currentOutstanding = currentAccountSales.reduce(
+      (total, sale) => total + getSaleOutstanding(sale),
+      0
+    );
+
+    if (!Number.isFinite(amount) || amount <= 0 || amount > currentOutstanding) {
+      alert('El monto del cobro ya no coincide con el saldo pendiente de la cuenta. Actualiza la pantalla e inténtalo nuevamente.');
+      return;
+    }
+
+    let remainingAmount = amount;
+    const updatedById = new Map<string, Sale>();
+    const collectionId = `account-payment-${crypto.randomUUID()}`;
+
+    for (const sale of currentAccountSales) {
+      const saleOutstanding = getSaleOutstanding(sale);
+      if (saleOutstanding <= 0 || remainingAmount <= 0) continue;
+
+      const appliedAmount = Math.min(saleOutstanding, remainingAmount);
+      const payments = [
+        ...getSalePayments(sale),
+        {
+          id: `${collectionId}-${sale.id}`,
+          date,
+          amount: appliedAmount,
+          paymentMethod,
+        },
+      ];
+      updatedById.set(sale.id, { ...sale, payments });
+      remainingAmount -= appliedAmount;
+    }
+
+    const updatedSales = sales.map((sale) => updatedById.get(sale.id) ?? sale);
+    setSales(updatedSales);
+    saveSales(updatedSales);
+
+    if (isCloudConnected) {
+      const results = await Promise.all(
+        [...updatedById.values()].map((sale) =>
+          syncSaleToCloud(sale, currentUser?.id)
+        )
+      );
+      const failedResult = results.find((result) => !result.success || result.warning);
+      if (failedResult) {
+        alert(
+          failedResult.error ??
+            failedResult.warning ??
+            'El cobro quedó guardado en este dispositivo, pero no se pudo sincronizar completamente con la nube.'
+        );
+      }
+    }
+  };
+
   const handleSaveExpense = (expense: Expense) => {
     const updated = [expense, ...expenses];
     setExpenses(updated);
@@ -643,6 +707,7 @@ export function App() {
               setIsReceiptModalOpen(true);
             }}
             onCancelSale={handleCancelSale}
+            onCollectAccount={handleCollectFiadoAccount}
             onEditSale={(sale) => {
               setEditingSale(sale);
               setIsEditSaleModalOpen(true);

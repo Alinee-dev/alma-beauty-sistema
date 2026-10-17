@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Expense, ExpenseCategory, BusinessSettings } from '../types';
 import { Plus, Trash2, Calendar, Receipt, DollarSign } from 'lucide-react';
+import { roundPesos } from '../services/money';
 
 interface ExpensesProps {
   expenses: Expense[];
@@ -35,7 +36,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ expenses, onSaveExpense, onD
       id: `exp-${Date.now()}`,
       date,
       description,
-      amount: Number(amount),
+      amount: roundPesos(Number(amount)),
       category,
     };
 
@@ -105,7 +106,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ expenses, onSaveExpense, onD
             </div>
             <div>
               <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.3rem', display: 'block' }}>Monto ({settings.currency})</label>
-              <input type="number" className="glass-input" value={amount} onChange={(e) => setAmount(e.target.value)} required min="0" step="0.01" placeholder="0.00" />
+              <input type="number" className="glass-input" value={amount} onChange={(e) => setAmount(e.target.value ? String(roundPesos(Number(e.target.value))) : '')} required min="0" step="1" placeholder="0" />
             </div>
           </div>
           <div>

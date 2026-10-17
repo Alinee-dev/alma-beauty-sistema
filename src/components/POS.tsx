@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Product, CartItem, PaymentMethod, Sale, Category, BusinessSettings } from '../types';
+import { roundPesos } from '../services/money';
 import { 
   Search, 
   ShoppingCart, 
@@ -95,7 +96,7 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
       if (item.product.id === productId) {
         return {
           ...item,
-          product: { ...item.product, salePrice: newPrice }
+          product: { ...item.product, salePrice: roundPesos(newPrice) }
         };
       }
       return item;
@@ -131,12 +132,12 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
   };
 
   // Calculations
-  const rawSubtotal = cart.reduce((acc, item) => acc + item.product.salePrice * item.quantity, 0);
+  const rawSubtotal = roundPesos(cart.reduce((acc, item) => acc + item.product.salePrice * item.quantity, 0));
   const discountAmount = Math.round((rawSubtotal * (discountPercent || 0)) / 100);
-  const totalAmount = rawSubtotal - discountAmount;
+  const totalAmount = roundPesos(rawSubtotal - discountAmount);
 
-  const totalCost = cart.reduce((acc, item) => acc + item.product.costPrice * item.quantity, 0);
-  const netProfit = totalAmount - totalCost;
+  const totalCost = roundPesos(cart.reduce((acc, item) => acc + item.product.costPrice * item.quantity, 0));
+  const netProfit = roundPesos(totalAmount - totalCost);
 
   const handleCheckout = async () => {
     if (cart.length === 0 || isCompletingSale) return;
@@ -151,7 +152,7 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
       unitPrice: item.product.salePrice,
       costPrice: item.product.costPrice,
       quantity: item.quantity,
-      total: item.product.salePrice * item.quantity,
+      total: roundPesos(item.product.salePrice * item.quantity),
     }));
 
     const newSale: Sale = {
@@ -426,6 +427,7 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
                     <input 
                       type="number"
                       min="0"
+                      step="1"
                       value={item.product.salePrice === 0 ? '' : item.product.salePrice}
                       onChange={(e) => updateItemPrice(item.product.id, Number(e.target.value))}
                       style={{ 

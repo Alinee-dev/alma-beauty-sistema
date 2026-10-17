@@ -8,6 +8,11 @@ import {
   CheckCircle2,
   Sparkles,
 } from 'lucide-react';
+import {
+  getSaleOutstanding,
+  getSalePaidAmount,
+  getSalePaymentMethods,
+} from '../services/salePayments';
 
 interface ReceiptModalProps {
   sale: Sale | null;
@@ -89,11 +94,15 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
       )}\n`;
     }
 
-    text += `*TOTAL PAGADO:* ${settings.currency} ${sale.total.toLocaleString(
-      'es-CL'
-    )}\n`;
+    if (sale.paymentMethod === 'Fiado') {
+      text += `*TOTAL DE LA CUENTA:* ${settings.currency} ${sale.total.toLocaleString('es-CL')}\n`;
+      text += `*ABONADO:* ${settings.currency} ${getSalePaidAmount(sale).toLocaleString('es-CL')}\n`;
+      text += `*SALDO PENDIENTE:* ${settings.currency} ${getSaleOutstanding(sale).toLocaleString('es-CL')}\n`;
+    } else {
+      text += `*TOTAL PAGADO:* ${settings.currency} ${sale.total.toLocaleString('es-CL')}\n`;
+    }
 
-    text += `Método de pago: ${sale.paymentMethod}\n\n`;
+    text += `Método de pago: ${getSalePaymentMethods(sale).join(', ')}\n\n`;
     text += `¡Muchas gracias por tu compra en ${settings.name}! 💖`;
 
     const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
@@ -248,7 +257,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             )}
 
             <div>
-              <b>Forma de Pago:</b> {sale.paymentMethod}
+              <b>Forma de Pago:</b> {getSalePaymentMethods(sale).join(', ')}
             </div>
           </div>
 
@@ -364,12 +373,24 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 borderTop: '1px solid #000',
               }}
             >
-              <span>TOTAL:</span>
+              <span>{sale.paymentMethod === 'Fiado' ? 'TOTAL DE LA CUENTA:' : 'TOTAL:'}</span>
               <span>
                 {settings.currency}{' '}
                 {sale.total.toLocaleString('es-CL')}
               </span>
             </div>
+            {sale.paymentMethod === 'Fiado' && getSaleOutstanding(sale) > 0 && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
+                  <span>Abonado:</span>
+                  <span>{settings.currency} {getSalePaidAmount(sale).toLocaleString('es-CL')}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800 }}>
+                  <span>Saldo pendiente:</span>
+                  <span>{settings.currency} {getSaleOutstanding(sale).toLocaleString('es-CL')}</span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Mensaje final */}

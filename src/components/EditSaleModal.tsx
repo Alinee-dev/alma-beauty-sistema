@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Sale, SaleItem, PaymentMethod, BusinessSettings } from '../types';
 import { X, Save, DollarSign, User, CreditCard, Tag } from 'lucide-react';
 import { getSaleOutstanding, getSalePayments } from '../services/salePayments';
+import { roundPesos } from '../services/money';
 
 const toLocalDateInputValue = (value: string): string => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -75,12 +76,12 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
   const handleUpdateItemPrice = (index: number, newUnitPrice: number) => {
     const updatedItems = [...items];
     const item = { ...updatedItems[index] };
-    item.unitPrice = newUnitPrice;
-    item.total = newUnitPrice * item.quantity;
+    item.unitPrice = roundPesos(newUnitPrice);
+    item.total = roundPesos(item.unitPrice * item.quantity);
     updatedItems[index] = item;
     setItems(updatedItems);
 
-    const newSubtotal = updatedItems.reduce((acc, i) => acc + i.total, 0);
+    const newSubtotal = roundPesos(updatedItems.reduce((acc, i) => acc + i.total, 0));
     setTotal(newSubtotal);
   };
 
@@ -97,10 +98,11 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
   };
 
   const handleSave = () => {
-    const newSubtotal = items.reduce((acc, i) => acc + i.total, 0);
-    const totalCost = items.reduce((acc, item) => acc + item.costPrice * item.quantity, 0);
-    const newDiscount = Math.max(0, newSubtotal - total);
-    const newProfit = total - totalCost;
+    const newSubtotal = roundPesos(items.reduce((acc, i) => acc + i.total, 0));
+    const totalCost = roundPesos(items.reduce((acc, item) => acc + item.costPrice * item.quantity, 0));
+    const normalizedTotal = roundPesos(total);
+    const newDiscount = Math.max(0, newSubtotal - normalizedTotal);
+    const newProfit = roundPesos(normalizedTotal - totalCost);
 
     const needsPaymentDate =
       paymentMethod !== 'Fiado' &&
@@ -126,7 +128,7 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
             ? [{
                 id: `payment-${sale.id}-${currentPayments.length + 1}`,
                 date: paymentDate,
-                amount: getSaleOutstanding(sale),
+                amount: roundPesos(getSaleOutstanding(sale)),
                 paymentMethod,
               }]
             : []),
@@ -149,7 +151,7 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
       customerName: customerName.trim() || undefined,
       paymentMethod,
       payments,
-      total: total,
+      total: normalizedTotal,
       discount: newDiscount,
       profit: newProfit
     };
@@ -281,6 +283,7 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
                     <input
                       type="number"
                       min="0"
+                      step="1"
                       value={item.unitPrice === 0 ? '' : item.unitPrice}
                       onChange={(e) => handleUpdateItemPrice(index, Number(e.target.value))}
                       style={{ 
@@ -314,8 +317,9 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
                 className="glass-input"
                 style={{ paddingLeft: '2.5rem', fontWeight: 800, color: 'var(--primary-light)' }}
                 value={total === 0 ? '' : total}
-                onChange={(e) => setTotal(Number(e.target.value))}
+                onChange={(e) => setTotal(e.target.value ? roundPesos(Number(e.target.value)) : 0)}
                 min="0"
+                step="1"
               />
             </div>
             <p style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.4rem' }}>

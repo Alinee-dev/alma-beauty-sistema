@@ -1,5 +1,12 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import type { Product, Sale, SalePayment, Expense, PersonalUseItem, BusinessSettings } from '../types';
+import {
+  normalizeExpenseMoney,
+  normalizePersonalUseMoney,
+  normalizeProductMoney,
+  normalizeSaleMoney,
+  normalizeSettingsMoney,
+} from './money';
 import { 
   getProducts as getLocalProducts, 
   saveProducts as saveLocalProducts,
@@ -32,7 +39,9 @@ const getPendingSales = (): Sale[] => {
     const stored = localStorage.getItem(PENDING_SALES_KEY);
     if (!stored) return [];
     const parsed: unknown = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed.filter(isSale) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter(isSale).map(normalizeSaleMoney)
+      : [];
   } catch (error) {
     console.error('Error loading pending sales:', error);
     return [];
@@ -40,7 +49,10 @@ const getPendingSales = (): Sale[] => {
 };
 
 const savePendingSales = (sales: Sale[]): void => {
-  localStorage.setItem(PENDING_SALES_KEY, JSON.stringify(sales));
+  localStorage.setItem(
+    PENDING_SALES_KEY,
+    JSON.stringify(sales.map(normalizeSaleMoney))
+  );
 };
 
 const getPendingSaleDeletions = (): string[] => {
@@ -146,7 +158,7 @@ interface DbSettings {
   user_id?: string | null;
 }
 
-export const mapProductFromDb = (item: DbProduct): Product => ({
+export const mapProductFromDb = (item: DbProduct): Product => normalizeProductMoney({
   id: item.id,
   name: item.name,
   category: item.category as Product['category'],
@@ -161,7 +173,9 @@ export const mapProductFromDb = (item: DbProduct): Product => ({
   createdAt: item.created_at || new Date().toISOString(),
 });
 
-export const mapProductToDb = (p: Product, userId?: string): DbProduct => ({
+export const mapProductToDb = (product: Product, userId?: string): DbProduct => {
+  const p = normalizeProductMoney(product);
+  return ({
   id: p.id,
   name: p.name,
   category: p.category,
@@ -175,9 +189,10 @@ export const mapProductToDb = (p: Product, userId?: string): DbProduct => ({
   image_url: p.imageUrl ?? null,
   created_at: p.createdAt,
   user_id: userId ?? null,
-});
+  });
+};
 
-export const mapSaleFromDb = (item: DbSale): Sale => ({
+export const mapSaleFromDb = (item: DbSale): Sale => normalizeSaleMoney({
   id: item.id,
   date: item.date,
   items: Array.isArray(item.items) ? item.items : [],
@@ -194,7 +209,9 @@ export const mapSaleFromDb = (item: DbSale): Sale => ({
   notes: item.notes || undefined,
 });
 
-export const mapSaleToDb = (s: Sale, userId?: string): DbSale => ({
+export const mapSaleToDb = (sale: Sale, userId?: string): DbSale => {
+  const s = normalizeSaleMoney(sale);
+  return ({
   id: s.id,
   date: s.date,
   items: s.items,
@@ -208,9 +225,10 @@ export const mapSaleToDb = (s: Sale, userId?: string): DbSale => ({
   customer_phone: s.customerPhone ?? null,
   notes: s.notes ?? null,
   user_id: userId ?? null,
-});
+  });
+};
 
-export const mapExpenseFromDb = (item: DbExpense): Expense => ({
+export const mapExpenseFromDb = (item: DbExpense): Expense => normalizeExpenseMoney({
   id: item.id,
   date: item.date,
   description: item.description,
@@ -218,16 +236,19 @@ export const mapExpenseFromDb = (item: DbExpense): Expense => ({
   category: item.category as Expense['category'],
 });
 
-export const mapExpenseToDb = (e: Expense, userId?: string): DbExpense => ({
+export const mapExpenseToDb = (expense: Expense, userId?: string): DbExpense => {
+  const e = normalizeExpenseMoney(expense);
+  return ({
   id: e.id,
   date: e.date,
   description: e.description,
   amount: e.amount,
   category: e.category,
   user_id: userId ?? null,
-});
+  });
+};
 
-export const mapPersonalUseFromDb = (item: DbPersonalUse): PersonalUseItem => ({
+export const mapPersonalUseFromDb = (item: DbPersonalUse): PersonalUseItem => normalizePersonalUseMoney({
   id: item.id,
   productId: item.product_id,
   productName: item.product_name,
@@ -240,7 +261,9 @@ export const mapPersonalUseFromDb = (item: DbPersonalUse): PersonalUseItem => ({
   imageUrl: item.image_url || undefined,
 });
 
-export const mapPersonalUseToDb = (p: PersonalUseItem, userId?: string): DbPersonalUse => ({
+export const mapPersonalUseToDb = (personalUse: PersonalUseItem, userId?: string): DbPersonalUse => {
+  const p = normalizePersonalUseMoney(personalUse);
+  return ({
   id: p.id,
   product_id: p.productId,
   product_name: p.productName,
@@ -252,9 +275,10 @@ export const mapPersonalUseToDb = (p: PersonalUseItem, userId?: string): DbPerso
   reason: p.reason ?? null,
   image_url: p.imageUrl ?? null,
   user_id: userId ?? null,
-});
+  });
+};
 
-export const mapSettingsFromDb = (item: DbSettings): BusinessSettings => ({
+export const mapSettingsFromDb = (item: DbSettings): BusinessSettings => normalizeSettingsMoney({
   name: item.name || 'Aline Beauty',
   subtitle: item.subtitle || 'Maquillaje y Accesorios',
   phone: item.phone || '',
@@ -268,7 +292,9 @@ export const mapSettingsFromDb = (item: DbSettings): BusinessSettings => ({
     item.company_capital == null ? undefined : Number(item.company_capital),
 });
 
-export const mapSettingsToDb = (s: BusinessSettings, userId?: string): DbSettings => ({
+export const mapSettingsToDb = (settings: BusinessSettings, userId?: string): DbSettings => {
+  const s = normalizeSettingsMoney(settings);
+  return ({
   id: 'main_settings',
   name: s.name,
   subtitle: s.subtitle,
@@ -281,7 +307,8 @@ export const mapSettingsToDb = (s: BusinessSettings, userId?: string): DbSetting
   last_cash_cut: s.lastCashCut ?? null,
   company_capital: s.companyCapital ?? 0,
   user_id: userId ?? null,
-});
+  });
+};
 
 // --- CLOUD FETCH FUNCTIONS ---
 

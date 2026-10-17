@@ -28,6 +28,7 @@ import {
   Clock,
   PieChart,
 } from 'lucide-react';
+import { roundPesos } from '../services/money';
 
 interface DashboardProps {
   products: Product[];
@@ -256,15 +257,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // Distribute collected sales profit; operating expenses are accounted for in company capital.
   const distributableProfit = Math.max(0, cutGrossProfit);
-  const personalAmount = (distributableProfit * personalSplit) / 100;
+  const personalAmount = roundPesos((distributableProfit * personalSplit) / 100);
 
   const availableSalary = Math.max(
     0,
     personalAmount - cutWithdrawnSalary
   );
 
-  const cyclePozo =
-    (distributableProfit * (100 - personalSplit)) / 100;
+  const cyclePozo = roundPesos(
+    (distributableProfit * (100 - personalSplit)) / 100
+  );
 
   // Recover product cost only for amounts actually collected, regardless of payment method.
   const recoveredSalesInvestment = cutReceipts.reduce(
@@ -286,16 +288,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
     .reduce((acc, e) => acc + e.amount, 0);
 
   // Capital actual: saldo anterior + aportes + costos recuperados - gastos del ciclo.
-  const totalCajaFisica =
+  const totalCajaFisica = roundPesos(
     baseCompanyCapital +
     cycleContributions -
     allCutExpenses +
-    recoveredSalesInvestment;
+    recoveredSalesInvestment
+  );
 
   // Ejecutar corte de caja
   const handleCashCut = () => {
     const maximumPozoToAdd = Math.max(0, cyclePozo);
-    setCashCutAmount(maximumPozoToAdd.toFixed(2));
+    setCashCutAmount(String(Math.floor(maximumPozoToAdd)));
     setCashCutError('');
     setIsCashCutModalOpen(true);
   };
@@ -306,6 +309,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     if (
       cashCutAmount.trim() === '' ||
       !Number.isFinite(pozoToAdd) ||
+      !Number.isInteger(pozoToAdd) ||
       pozoToAdd < 0 ||
       pozoToAdd > maximumPozoToAdd
     ) {
@@ -315,7 +319,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       return;
     }
 
-    const newCapital = totalCajaFisica + pozoToAdd;
+    const newCapital = roundPesos(totalCajaFisica + pozoToAdd);
     onSaveSettings({
       ...settings,
       lastCashCut: new Date().toISOString(),
@@ -1584,7 +1588,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               type="number"
               min="0"
               max={Math.max(0, cyclePozo)}
-              step="0.01"
+              step="1"
               value={cashCutAmount}
               onChange={(event) => {
                 setCashCutAmount(event.target.value);

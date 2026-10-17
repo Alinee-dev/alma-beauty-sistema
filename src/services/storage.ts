@@ -1,5 +1,12 @@
 import type { Product, Sale, BusinessSettings, Expense, PersonalUseItem } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_SETTINGS } from '../data/initialData';
+import {
+  normalizeExpenseMoney,
+  normalizePersonalUseMoney,
+  normalizeProductMoney,
+  normalizeSaleMoney,
+  normalizeSettingsMoney,
+} from './money';
 
 const KEYS = {
   PRODUCTS: 'aline_beauty_products_v2',
@@ -14,11 +21,14 @@ export const getProducts = (): Product[] => {
   try {
     const data = localStorage.getItem(KEYS.PRODUCTS);
     if (!data) {
-      saveProducts(INITIAL_PRODUCTS);
-      return INITIAL_PRODUCTS;
+      const products = INITIAL_PRODUCTS.map(normalizeProductMoney);
+      saveProducts(products);
+      return products;
     }
     const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : INITIAL_PRODUCTS;
+    return Array.isArray(parsed)
+      ? parsed.map(normalizeProductMoney)
+      : INITIAL_PRODUCTS.map(normalizeProductMoney);
   } catch (error) {
     console.error('Error loading products from localStorage:', error);
     return INITIAL_PRODUCTS;
@@ -26,7 +36,7 @@ export const getProducts = (): Product[] => {
 };
 
 export const saveProducts = (products: Product[]): void => {
-  localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
+  localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products.map(normalizeProductMoney)));
 };
 
 // --- SALES ---
@@ -35,7 +45,7 @@ export const getSales = (): Sale[] => {
     const data = localStorage.getItem(KEYS.SALES);
     if (!data) return [];
     const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeSaleMoney) : [];
   } catch (error) {
     console.error('Error loading sales from localStorage:', error);
     return [];
@@ -43,7 +53,7 @@ export const getSales = (): Sale[] => {
 };
 
 export const saveSales = (sales: Sale[]): void => {
-  localStorage.setItem(KEYS.SALES, JSON.stringify(sales));
+  localStorage.setItem(KEYS.SALES, JSON.stringify(sales.map(normalizeSaleMoney)));
 };
 
 // --- SETTINGS ---
@@ -59,17 +69,17 @@ export const getSettings = (): BusinessSettings => {
       if (parsed.companyCapital === undefined) {
         parsed.companyCapital = 43580;
       }
-      return parsed;
+      return normalizeSettingsMoney(parsed);
     }
-    return INITIAL_SETTINGS;
+    return normalizeSettingsMoney(INITIAL_SETTINGS);
   } catch (error) {
     console.error('Error loading settings from localStorage:', error);
-    return INITIAL_SETTINGS;
+    return normalizeSettingsMoney(INITIAL_SETTINGS);
   }
 };
 
 export const saveSettings = (settings: BusinessSettings): void => {
-  localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
+  localStorage.setItem(KEYS.SETTINGS, JSON.stringify(normalizeSettingsMoney(settings)));
 };
 
 // --- BACKUP & RESTORE ---
@@ -114,7 +124,7 @@ export const getExpenses = (): Expense[] => {
     const data = localStorage.getItem(KEYS.EXPENSES);
     if (!data) return [];
     const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeExpenseMoney) : [];
   } catch (error) {
     console.error('Error loading expenses from localStorage:', error);
     return [];
@@ -122,7 +132,7 @@ export const getExpenses = (): Expense[] => {
 };
 
 export const saveExpenses = (expenses: Expense[]): void => {
-  localStorage.setItem(KEYS.EXPENSES, JSON.stringify(expenses));
+  localStorage.setItem(KEYS.EXPENSES, JSON.stringify(expenses.map(normalizeExpenseMoney)));
 };
 
 // --- PERSONAL USE (USO PERSONAL / PARA MÍ) ---
@@ -131,7 +141,7 @@ export const getPersonalUse = (): PersonalUseItem[] => {
     const data = localStorage.getItem(KEYS.PERSONAL_USE);
     if (!data) return [];
     const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(normalizePersonalUseMoney) : [];
   } catch (error) {
     console.error('Error loading personal use items from localStorage:', error);
     return [];
@@ -139,5 +149,5 @@ export const getPersonalUse = (): PersonalUseItem[] => {
 };
 
 export const savePersonalUse = (items: PersonalUseItem[]): void => {
-  localStorage.setItem(KEYS.PERSONAL_USE, JSON.stringify(items));
+  localStorage.setItem(KEYS.PERSONAL_USE, JSON.stringify(items.map(normalizePersonalUseMoney)));
 };
