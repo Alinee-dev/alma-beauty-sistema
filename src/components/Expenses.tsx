@@ -120,7 +120,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ expenses, onSaveExpense, onD
         </form>
       )}
 
-      <div className="glass-panel" style={{ overflow: 'hidden' }}>
+      <div className="glass-panel table-scroll-wrapper" style={{ overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ backgroundColor: 'var(--bg-surface-inner)', borderBottom: '1px solid var(--border-color)' }}>

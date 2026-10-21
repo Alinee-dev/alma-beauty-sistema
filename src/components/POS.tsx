@@ -10,7 +10,8 @@ import {
   User, 
   Phone, 
   CheckCircle2, 
-  Tag
+  Tag,
+  X
 } from 'lucide-react';
 
 interface POSProps {
@@ -42,6 +43,8 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Efectivo');
   const [notes, setNotes] = useState('');
   const [isCompletingSale, setIsCompletingSale] = useState(false);
+  // Mobile cart sheet toggle
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Filter products
   const filteredProducts = products.filter((p) => {
@@ -68,6 +71,8 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
             : item
         );
       } else {
+        // Only open cart automatically on the FIRST item added
+        if (prevCart.length === 0) setIsCartOpen(true);
         return [...prevCart, { product: { ...product }, quantity: 1 }];
       }
     });
@@ -120,7 +125,11 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
   };
 
   const removeFromCart = (productId: string) => {
-    setCart((prevCart) => prevCart.filter((item) => item.product.id !== productId));
+    setCart((prevCart) => {
+      const updated = prevCart.filter((item) => item.product.id !== productId);
+      if (updated.length === 0) setIsCartOpen(false);
+      return updated;
+    });
   };
 
   const clearCart = () => {
@@ -129,6 +138,7 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
     setCustomerPhone('');
     setDiscountPercent(0);
     setNotes('');
+    setIsCartOpen(false);
   };
 
   // Calculations
@@ -188,9 +198,26 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
     }
   };
 
+  const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', minHeight: 'calc(100vh - 120px)' }}>
-      
+
+      {/* Mobile overlay: closes cart when tapped outside */}
+      {isCartOpen && cart.length > 0 && (
+        <div
+          className="pos-cart-overlay"
+          onClick={() => setIsCartOpen(false)}
+          style={{
+            display: 'none', // shown via CSS on mobile only
+            position: 'fixed', inset: 0,
+            background: 'rgba(51, 26, 36, 0.45)',
+            backdropFilter: 'blur(2px)',
+            zIndex: 499,
+          }}
+        />
+      )}
+
       {/* LEFT COLUMN: Product Catalog & Search */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', flex: '1 1 600px', minWidth: 0 }}>
         
@@ -258,7 +285,7 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
         </div>
 
         {/* Products Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', overflowY: 'auto', maxHeight: 'calc(100vh - 240px)', paddingRight: '0.2rem' }}>
+        <div className="pos-product-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', overflowY: 'auto', maxHeight: 'calc(100vh - 240px)', paddingRight: '0.2rem' }}>
           {filteredProducts.length === 0 ? (
             <div className="glass-panel" style={{ gridColumn: '1 / -1', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
               <p style={{ fontSize: '1.1rem' }}>No se encontraron productos que coincidan.</p>
@@ -335,9 +362,43 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
 
       </div>
 
-      {/* RIGHT COLUMN: Shopping Cart & Checkout (Only visible when items are added) */}
+      {/* Floating cart badge (mobile only) */}
       {cart.length > 0 && (
-        <div className="glass-panel" style={{ padding: '1.4rem', display: 'flex', flexDirection: 'column', flex: '1 1 340px', maxWidth: '100%', minWidth: '300px' }}>
+        <button
+          className="pos-cart-fab"
+          onClick={() => setIsCartOpen((v) => !v)}
+          style={{ display: 'none' }} // shown via CSS
+          aria-label="Ver carrito"
+        >
+          <ShoppingCart size={22} color="#fff" />
+          <span style={{
+            position: 'absolute', top: '-4px', right: '-4px',
+            background: '#fff', color: 'var(--primary)',
+            fontSize: '0.72rem', fontWeight: 800,
+            borderRadius: '999px', width: '20px', height: '20px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            lineHeight: 1
+          }}>{totalCartItems}</span>
+        </button>
+      )}
+
+      {/* RIGHT COLUMN: Shopping Cart & Checkout */}
+      {cart.length > 0 && (
+        <div
+          className={`glass-panel pos-cart-sheet${isCartOpen ? ' pos-cart-open' : ''}`}
+          style={{ padding: '1.4rem', display: 'flex', flexDirection: 'column', flex: '1 1 340px', maxWidth: '100%', minWidth: '300px' }}
+        >
+          {/* Drag handle + close – only visible on mobile via CSS */}
+          <div className="pos-cart-sheet-handle" style={{ display: 'none', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+            <div style={{ width: '40px', height: '4px', background: 'rgba(219, 39, 119, 0.35)', borderRadius: '2px', margin: '0 auto' }} />
+            <button
+              onClick={() => setIsCartOpen(false)}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', position: 'absolute', right: '1rem', top: '0.8rem', padding: '4px' }}
+              aria-label="Cerrar carrito"
+            >
+              <X size={20} />
+            </button>
+          </div>
           
           {/* Cart Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.8rem', borderBottom: '1px solid var(--border-color)' }}>

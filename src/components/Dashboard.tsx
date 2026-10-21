@@ -490,6 +490,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div
+            className="dashboard-welcome-actions"
             style={{
               display: 'flex',
               gap: '0.75rem',
@@ -525,6 +526,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* KPI Cards Grid */}
       <div
+        className="kpi-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
@@ -1018,6 +1020,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* Metrics Grid */}
         <div
+          className="salary-pozo-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',

@@ -349,14 +349,221 @@ button[title*=" stock"] {
   }
 
   main {
-    padding-bottom: 5.5rem !important; /* Space for MobileBottomNav */
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
+    padding-bottom: 5.5rem !important;
+    padding-left: 0.6rem !important;
+    padding-right: 0.6rem !important;
+    padding-top: 1rem !important;
   }
 
-  /* Make modal dialogs fit mobile screens comfortably */
   .glass-panel {
     border-radius: var(--radius-sm);
+  }
+
+  /* ── Modal overlay: full screen on mobile ── */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-overlay > .glass-panel {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    max-height: 94dvh;
+    overflow-y: auto;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 1.2rem 1rem 2rem !important;
+  }
+
+  /* ── POS: Mobile cart as bottom sheet ── */
+  .pos-cart-sheet {
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 500;
+    border-radius: var(--radius-md) var(--radius-md) 0 0 !important;
+    max-height: 85dvh;
+    overflow-y: auto;
+    box-shadow: 0 -8px 40px rgba(219, 39, 119, 0.2) !important;
+    padding: 1rem 1rem calc(5rem + env(safe-area-inset-bottom, 0px)) !important;
+    /* Hidden by default – slides up when open */
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Keep it in the stacking context even when hidden */
+    flex: none !important;
+    min-width: unset !important;
+  }
+
+  .pos-cart-sheet.pos-cart-open {
+    transform: translateY(0);
+  }
+
+  /* Dimmed overlay behind the cart */
+  .pos-cart-overlay {
+    display: block !important;
+  }
+
+  /* Floating cart badge button */
+  .pos-cart-fab {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    right: 1.2rem;
+    z-index: 498;
+    width: 58px;
+    height: 58px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f472b6 0%, #db2777 100%);
+    box-shadow: 0 6px 24px rgba(219, 39, 119, 0.5);
+    border: none;
+    cursor: pointer;
+    position: fixed;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .pos-cart-fab:active {
+    transform: scale(0.93);
+  }
+
+  .pos-cart-sheet-handle {
+    display: flex !important;
+    position: relative;
+  }
+
+  /* ── Inventory toolbar: stack vertically ── */
+  .inventory-toolbar {
+    flex-direction: column !important;
+    gap: 0.6rem !important;
+  }
+
+  .inventory-toolbar-filters {
+    flex-direction: column !important;
+    min-width: unset !important;
+    width: 100% !important;
+    gap: 0.5rem !important;
+  }
+
+  .inventory-toolbar-actions {
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+
+  /* ── Tables: horizontal scroll ── */
+  .table-scroll-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-scroll-wrapper table {
+    min-width: 560px;
+  }
+
+  /* ── Dashboard welcome banner ── */
+  .dashboard-welcome-actions {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+
+  .dashboard-welcome-actions .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* ── KPI cards: 2 columns ── */
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  .kpi-grid > div {
+    padding: 1rem !important;
+  }
+
+  .kpi-grid h3 {
+    font-size: 1.35rem !important;
+  }
+
+  /* ── Sales history filters ── */
+  .sales-filter-bar {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .sales-filter-bar select {
+    width: 100% !important;
+  }
+
+  /* ── Salary/Pozo card: stack ── */
+  .salary-pozo-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Settings modal ── */
+  .settings-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Header: compact on mobile ── */
+  header .brand-title {
+    font-size: 1rem !important;
+  }
+
+  /* ── SalesHistory: summary bar ── */
+  .sales-summary-bar {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.6rem !important;
+  }
+
+  .sales-summary-bar > div {
+    text-align: left !important;
+  }
+
+  /* ── Font size adjustments ── */
+  h2.font-serif {
+    font-size: 1.4rem !important;
+  }
+
+  /* ── iOS: prevent auto-zoom on input focus ── */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* ── Touch targets: minimum 44px for accessibility ── */
+  .btn {
+    min-height: 44px;
+  }
+}
+
+/* Very small phones (<= 480px) */
+@media (max-width: 480px) {
+  main {
+    padding-left: 0.4rem !important;
+    padding-right: 0.4rem !important;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .kpi-grid h3 {
+    font-size: 1.1rem !important;
+  }
+
+  .kpi-grid > div {
+    padding: 0.75rem !important;
+  }
+
+  /* POS product grid: 2 columns */
+  .pos-product-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.6rem !important;
+  }
+
+  .pos-product-grid > div {
+    padding: 0.65rem !important;
   }
 }
 
@@ -364,5 +571,26 @@ button[title*=" stock"] {
   .mobile-bottom-nav {
     display: none !important;
   }
-}
 
+  /* Reset mobile-only overrides on desktop */
+  .pos-cart-sheet-handle {
+    display: none !important;
+  }
+
+  .pos-cart-sheet {
+    position: static !important;
+    transform: none !important;
+    max-height: none !important;
+    border-radius: var(--radius-md) !important;
+    padding: 1.4rem !important;
+    box-shadow: var(--shadow-card) !important;
+  }
+
+  .pos-cart-fab {
+    display: none !important;
+  }
+
+  .pos-cart-overlay {
+    display: none !important;
+  }
+}

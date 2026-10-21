@@ -199,7 +199,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
       
       {/* Top Banner & Stats */}
-      <div className="glass-panel" style={{ padding: '1.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="glass-panel" style={{ padding: '1.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }} >
         <div>
           <h3 className="font-serif text-gradient" style={{ fontSize: '1.4rem', fontWeight: 700 }}>
             Historial de Ventas
@@ -225,7 +225,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
       </div>
 
       {/* Filter Toolbar */}
-      <div className="glass-panel" style={{ padding: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="glass-panel sales-filter-bar" style={{ padding: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
           <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
@@ -266,7 +266,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
       </div>
 
       {pendingAccounts.length > 0 && (
-        <div className="glass-panel" style={{ overflowX: 'auto', padding: '0.5rem' }}>
+        <div className="glass-panel table-scroll-wrapper" style={{ padding: '0.5rem' }}>
           <div style={{ padding: '0.8rem 0.9rem' }}>
             <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>Cuentas pendientes por cliente</h4>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '0.2rem' }}>
@@ -400,7 +400,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
           <p style={{ fontSize: '1rem' }}>No se encontraron registros de ventas.</p>
         </div>
       ) : sortedAndFilteredSales.length > 0 ? (
-        <div className="glass-panel" style={{ overflowX: 'auto', padding: '0.5rem' }}>
+        <div className="glass-panel table-scroll-wrapper" style={{ padding: '0.5rem' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>

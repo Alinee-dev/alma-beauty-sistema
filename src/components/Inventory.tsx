@@ -116,10 +116,10 @@ export const Inventory: React.FC<InventoryProps> = ({
 
       {/* Control Toolbar */}
       <div className="glass-panel" style={{ padding: '1.2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }} className="inventory-toolbar">
           
           {/* Search & Filters */}
-          <div style={{ display: 'flex', gap: '0.8rem', flex: 1, minWidth: '300px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.8rem', flex: 1, minWidth: '300px', flexWrap: 'wrap' }} className="inventory-toolbar-filters">
             
             <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
               <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -168,7 +168,7 @@ export const Inventory: React.FC<InventoryProps> = ({
           </div>
 
           {/* Right Actions & View mode */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }} className="inventory-toolbar-actions">
             <div style={{ display: 'flex', backgroundColor: 'rgba(15, 10, 21, 0.6)', borderRadius: '8px', padding: '3px', border: '1px solid rgba(255,255,255,0.1)' }}>
               <button
                 onClick={() => setViewMode('table')}
@@ -236,7 +236,7 @@ export const Inventory: React.FC<InventoryProps> = ({
       ) : viewMode === 'table' ? (
         
         /* TABLE VIEW */
-        <div className="glass-panel" style={{ overflowX: 'auto', padding: '0.5rem' }}>
+        <div className="glass-panel table-scroll-wrapper" style={{ padding: '0.5rem' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
