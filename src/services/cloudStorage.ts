@@ -22,6 +22,7 @@ import {
 
 const PENDING_SALES_KEY = 'aline_beauty_pending_sales_v1';
 const PENDING_SALE_DELETIONS_KEY = 'aline_beauty_pending_sale_deletions_v1';
+const SURPRISE_BAG_NOTE_PREFIX = '[ALINE_SURPRISE_BAG]\n';
 
 const isSale = (value: unknown): value is Sale => {
   if (!value || typeof value !== 'object') return false;
@@ -192,25 +193,37 @@ export const mapProductToDb = (product: Product, userId?: string): DbProduct => 
   });
 };
 
-export const mapSaleFromDb = (item: DbSale): Sale => normalizeSaleMoney({
-  id: item.id,
-  date: item.date,
-  items: Array.isArray(item.items) ? item.items : [],
-  subtotal: Number(item.subtotal || 0),
-  discount: Number(item.discount || 0),
-  total: Number(item.total || 0),
-  profit: Number(item.profit || 0),
-  paymentMethod: item.payment_method as Sale['paymentMethod'],
-  payments: Array.isArray(item.payments)
-    ? item.payments as SalePayment[]
-    : undefined,
-  customerName: item.customer_name || undefined,
-  customerPhone: item.customer_phone || undefined,
-  notes: item.notes || undefined,
-});
+export const mapSaleFromDb = (item: DbSale): Sale => {
+  const storedNotes = item.notes || undefined;
+  const isSurpriseBag = storedNotes?.startsWith(SURPRISE_BAG_NOTE_PREFIX) ?? false;
+  const notes = isSurpriseBag
+    ? (storedNotes ?? '').slice(SURPRISE_BAG_NOTE_PREFIX.length) || undefined
+    : storedNotes;
+
+  return normalizeSaleMoney({
+    id: item.id,
+    date: item.date,
+    items: Array.isArray(item.items) ? item.items : [],
+    subtotal: Number(item.subtotal || 0),
+    discount: Number(item.discount || 0),
+    total: Number(item.total || 0),
+    profit: Number(item.profit || 0),
+    paymentMethod: item.payment_method as Sale['paymentMethod'],
+    payments: Array.isArray(item.payments)
+      ? item.payments as SalePayment[]
+      : undefined,
+    customerName: item.customer_name || undefined,
+    customerPhone: item.customer_phone || undefined,
+    notes,
+    isSurpriseBag,
+  });
+};
 
 export const mapSaleToDb = (sale: Sale, userId?: string): DbSale => {
   const s = normalizeSaleMoney(sale);
+  const notes = s.isSurpriseBag
+    ? `${SURPRISE_BAG_NOTE_PREFIX}${s.notes ?? ''}`
+    : s.notes ?? null;
   return ({
   id: s.id,
   date: s.date,
@@ -223,7 +236,7 @@ export const mapSaleToDb = (sale: Sale, userId?: string): DbSale => {
   payments: s.payments ?? [],
   customer_name: s.customerName ?? null,
   customer_phone: s.customerPhone ?? null,
-  notes: s.notes ?? null,
+  notes,
   user_id: userId ?? null,
   });
 };

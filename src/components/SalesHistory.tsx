@@ -75,10 +75,12 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
   };
 
   const filteredSales = sales.filter((s) => {
+    const normalizedSearchTerm = searchTerm.toLocaleLowerCase('es');
     const matchesSearch =
       s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (s.customerName && s.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.customerPhone && s.customerPhone.includes(searchTerm));
+      (s.customerPhone && s.customerPhone.includes(searchTerm)) ||
+      (s.isSurpriseBag && 'bolsita sorpresa'.includes(normalizedSearchTerm));
     const matchesPayment =
       paymentFilter === 'Todos' ||
       getSalePaymentMethods(s).includes(paymentFilter as PaymentMethod);
@@ -450,6 +452,11 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({
                       <div style={{ fontSize: '0.85rem' }}>
                         {sale.items.length} {sale.items.length === 1 ? 'producto' : 'productos'}
                       </div>
+                      {sale.isSurpriseBag && (
+                        <span className="badge badge-pink" style={{ fontSize: '0.68rem', marginTop: '0.25rem' }}>
+                          Bolsita sorpresa
+                        </span>
+                      )}
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {sale.items.map((i) => `${i.quantity}x ${i.productName}`).join(', ')}
                       </div>

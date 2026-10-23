@@ -81,8 +81,10 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
     updatedItems[index] = item;
     setItems(updatedItems);
 
-    const newSubtotal = roundPesos(updatedItems.reduce((acc, i) => acc + i.total, 0));
-    setTotal(newSubtotal);
+    if (!sale.isSurpriseBag) {
+      const newSubtotal = roundPesos(updatedItems.reduce((acc, i) => acc + i.total, 0));
+      setTotal(newSubtotal);
+    }
   };
 
   const handleToggleOfferLabel = (index: number) => {
@@ -101,7 +103,7 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
     const newSubtotal = roundPesos(items.reduce((acc, i) => acc + i.total, 0));
     const totalCost = roundPesos(items.reduce((acc, item) => acc + item.costPrice * item.quantity, 0));
     const normalizedTotal = roundPesos(total);
-    const newDiscount = Math.max(0, newSubtotal - normalizedTotal);
+    const newDiscount = sale.isSurpriseBag ? 0 : Math.max(0, newSubtotal - normalizedTotal);
     const newProfit = roundPesos(normalizedTotal - totalCost);
 
     const needsPaymentDate =
@@ -153,7 +155,8 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
       payments,
       total: normalizedTotal,
       discount: newDiscount,
-      profit: newProfit
+      profit: newProfit,
+      ...(sale.isSurpriseBag ? { isSurpriseBag: true } : {}),
     };
 
     onSave(updatedSale);
@@ -306,7 +309,7 @@ const EditSaleForm: React.FC<EditSaleFormProps> = ({
           <div>
             <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>
               <DollarSign size={14} style={{ display: 'inline', marginRight: '4px' }} />
-              Precio Total Cobrado
+              {sale.isSurpriseBag ? 'Monto de la Bolsita (control interno)' : 'Precio Total Cobrado'}
             </label>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: 'var(--text-muted)' }}>

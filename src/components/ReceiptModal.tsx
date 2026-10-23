@@ -78,12 +78,17 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     if (sale.customerName) {
       text += `Cliente: ${sale.customerName}\n`;
     }
+    if (sale.isSurpriseBag) {
+      text += 'Tipo: Bolsita sorpresa\n';
+    }
 
     text += '-----------------------------------\n';
 
     sale.items.forEach((item) => {
-      text += `• ${item.quantity}x ${item.productName} = ${settings.currency
-        } ${item.total.toLocaleString('es-CL')}\n`;
+      text += sale.isSurpriseBag
+        ? `• ${item.quantity}x ${item.productName}\n`
+        : `• ${item.quantity}x ${item.productName} = ${settings.currency
+          } ${item.total.toLocaleString('es-CL')}\n`;
     });
 
     text += '-----------------------------------\n';
@@ -317,8 +322,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       verticalAlign: 'top',
                     }}
                   >
-                    {settings.currency}{' '}
-                    {item.total.toLocaleString('es-CL')}
+                    {sale.isSurpriseBag
+                      ? 'Incluido'
+                      : `${settings.currency} ${item.total.toLocaleString('es-CL')}`}
                   </td>
                 </tr>
               ))}
@@ -339,7 +345,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 marginBottom: '3px',
               }}
             >
-              <span>Subtotal:</span>
+              <span>
+                {sale.isSurpriseBag ? 'Valor referencial de productos:' : 'Subtotal:'}
+              </span>
               <span>
                 {settings.currency}{' '}
                 {sale.subtotal.toLocaleString('es-CL')}
@@ -373,7 +381,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 borderTop: '1px solid #000',
               }}
             >
-              <span>{sale.paymentMethod === 'Fiado' ? 'TOTAL DE LA CUENTA:' : 'TOTAL:'}</span>
+              <span>
+                {sale.isSurpriseBag
+                  ? 'TOTAL BOLSITA:'
+                  : sale.paymentMethod === 'Fiado' ? 'TOTAL DE LA CUENTA:' : 'TOTAL:'}
+              </span>
               <span>
                 {settings.currency}{' '}
                 {sale.total.toLocaleString('es-CL')}

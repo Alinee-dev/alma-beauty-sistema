@@ -62,6 +62,7 @@ export interface Sale {
   customerName?: string;
   customerPhone?: string;
   notes?: string;
+  isSurpriseBag?: boolean;
 }
 
 export interface BusinessSettings {

@@ -40,6 +40,8 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [isSurpriseBag, setIsSurpriseBag] = useState(false);
+  const [surpriseBagPrice, setSurpriseBagPrice] = useState<number | ''>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Efectivo');
   const [notes, setNotes] = useState('');
   const [isCompletingSale, setIsCompletingSale] = useState(false);
@@ -137,20 +139,37 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
     setCustomerName('');
     setCustomerPhone('');
     setDiscountPercent(0);
+    setIsSurpriseBag(false);
+    setSurpriseBagPrice('');
     setNotes('');
     setIsCartOpen(false);
   };
 
   // Calculations
   const rawSubtotal = roundPesos(cart.reduce((acc, item) => acc + item.product.salePrice * item.quantity, 0));
-  const discountAmount = Math.round((rawSubtotal * (discountPercent || 0)) / 100);
-  const totalAmount = roundPesos(rawSubtotal - discountAmount);
+  const discountAmount = isSurpriseBag
+    ? 0
+    : Math.round((rawSubtotal * (discountPercent || 0)) / 100);
+  const totalAmount = isSurpriseBag
+    ? roundPesos(Number(surpriseBagPrice) || 0)
+    : roundPesos(rawSubtotal - discountAmount);
 
   const totalCost = roundPesos(cart.reduce((acc, item) => acc + item.product.costPrice * item.quantity, 0));
   const netProfit = roundPesos(totalAmount - totalCost);
 
+  const toggleSurpriseBag = () => {
+    const nextValue = !isSurpriseBag;
+    setIsSurpriseBag(nextValue);
+    setSurpriseBagPrice(nextValue ? rawSubtotal : '');
+    if (nextValue) setDiscountPercent(0);
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0 || isCompletingSale) return;
+    if (isSurpriseBag && (!Number.isFinite(Number(surpriseBagPrice)) || Number(surpriseBagPrice) <= 0)) {
+      alert('Ingresa el monto total de la bolsita sorpresa para registrarla.');
+      return;
+    }
     setIsCompletingSale(true);
 
     const saleDate = new Date().toISOString();
@@ -185,6 +204,7 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
       customerName: customerName.trim() || undefined,
       customerPhone: customerPhone.trim() || undefined,
       notes: notes.trim() || undefined,
+      isSurpriseBag,
     };
 
     try {
@@ -418,6 +438,29 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
           )}
         </div>
 
+        <button
+          type="button"
+          onClick={toggleSurpriseBag}
+          aria-pressed={isSurpriseBag}
+          className="btn btn-secondary"
+          style={{
+            width: '100%',
+            justifyContent: 'center',
+            marginBottom: '1rem',
+            borderColor: isSurpriseBag ? 'var(--primary)' : undefined,
+            background: isSurpriseBag ? 'rgba(236, 72, 153, 0.18)' : undefined,
+          }}
+        >
+          <Tag size={16} />
+          {isSurpriseBag ? 'Venta marcada como bolsita sorpresa' : 'Marcar venta como bolsita sorpresa'}
+        </button>
+
+        {isSurpriseBag && (
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '-0.6rem 0 1rem' }}>
+            Los productos seleccionados se descuentan del stock. El monto se registra para tu control; el cobro lo haces presencialmente.
+          </p>
+        )}
+
         {/* Customer Info (Optional) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginBottom: '1rem' }}>
           <div>
@@ -572,22 +615,42 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
               </div>
             </div>
 
-            {/* Discount % */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.8rem' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <Tag size={14} /> Descuento (%)
-              </span>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                className="glass-input"
-                style={{ width: '80px', padding: '0.3rem 0.5rem', textAlign: 'center', fontSize: '0.85rem' }}
-                value={discountPercent || ''}
-                onChange={(e) => setDiscountPercent(Math.max(0, Math.min(100, Number(e.target.value))))}
-                placeholder="0"
-              />
-            </div>
+            {isSurpriseBag ? (
+              <div>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>
+                  Monto total de la bolsita (control interno)
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>{settings.currency}</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    className="glass-input"
+                    style={{ flex: 1, padding: '0.45rem 0.6rem', fontSize: '0.9rem' }}
+                    value={surpriseBagPrice}
+                    onChange={(e) => setSurpriseBagPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="Monto registrado"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.8rem' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Tag size={14} /> Descuento (%)
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="glass-input"
+                  style={{ width: '80px', padding: '0.3rem 0.5rem', textAlign: 'center', fontSize: '0.85rem' }}
+                  value={discountPercent || ''}
+                  onChange={(e) => setDiscountPercent(Math.max(0, Math.min(100, Number(e.target.value))))}
+                  placeholder="0"
+                />
+              </div>
+            )}
 
             {/* Totals Summary */}
             <div style={{ backgroundColor: 'rgba(15, 10, 21, 0.6)', padding: '0.8rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -595,14 +658,14 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
                 <span>Subtotal:</span>
                 <span>{settings.currency} {rawSubtotal.toLocaleString()}</span>
               </div>
-              {discountAmount > 0 && (
+              {!isSurpriseBag && discountAmount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#f472b6', marginBottom: '0.2rem' }}>
                   <span>Descuento ({discountPercent}%):</span>
                   <span>- {settings.currency} {discountAmount.toLocaleString()}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', marginTop: '0.4rem', paddingTop: '0.4rem', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
-                <span>TOTAL:</span>
+                <span>{isSurpriseBag ? 'TOTAL BOLSITA:' : 'TOTAL:'}</span>
                 <span style={{ color: '#34d399' }}>{settings.currency} {totalAmount.toLocaleString()}</span>
               </div>
             </div>
