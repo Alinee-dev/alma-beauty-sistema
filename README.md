@@ -1,3 +1,14 @@
+# Catálogo público conectado al inventario
+
+La página principal (`/`) muestra el catálogo público. El panel de administración está en `/admin/` y requiere iniciar sesión. El catálogo consulta los productos y la configuración de la tienda desde el mismo proyecto de Supabase; muestra solo productos con stock y no publica el costo ni la cantidad exacta disponible.
+
+## Puesta en marcha
+
+1. En el proyecto de Supabase usado por el panel, ejecuta `supabase_public_catalog.sql` desde **SQL Editor**. Si ya la ejecutaste antes, vuelve a ejecutarla para actualizar el stock y los precios de oferta expuestos al catálogo.
+2. Usa las mismas variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` del panel para el catálogo. Nunca uses ni publiques una clave `service_role`.
+3. Para publicar el catálogo por separado, ejecuta `npm run build:catalog` y despliega el contenido de `dist-catalog`. Para publicar catálogo y panel juntos, ejecuta `npm run build`; el catálogo estará en `/` y el panel en `/admin/`.
+4. Los cambios de stock se reflejan al abrir o volver a la página y se actualizan automáticamente cada 30 segundos. El catálogo no muestra la cantidad exacta, pero esa cifra queda disponible para el navegador para limitar el carrito. Los pedidos por WhatsApp no reservan ni descuentan stock: registra la venta en el panel para actualizar el inventario.
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

@@ -112,8 +112,8 @@ COMMIT;
 
 -- ==============================================================================
 -- POLÍTICAS DE SEGURIDAD (Row Level Security - RLS)
--- Permite que los usuarios autenticados gestionen sus propios datos,
--- y permite lectura pública de productos para el catálogo de clientes.
+-- Permite que los usuarios autenticados gestionen sus datos.
+-- El catálogo público accede a vistas con campos limitados.
 -- ==============================================================================
 
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
@@ -123,10 +123,14 @@ ALTER TABLE public.personal_use ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.business_settings ENABLE ROW LEVEL SECURITY;
 
 -- Políticas para PRODUCTOS:
--- Cualquiera (clientes públicos) puede ver productos si visita el catálogo:
-CREATE POLICY "Permitir lectura de productos a todos" 
-  ON public.products FOR SELECT 
+-- Los productos solo se consultan directamente desde el panel autenticado.
+CREATE POLICY "Permitir lectura de productos a autenticados"
+  ON public.products FOR SELECT
+  TO authenticated
   USING (true);
+
+REVOKE SELECT ON public.products FROM PUBLIC, anon;
+GRANT SELECT ON public.products TO authenticated;
 
 -- Solo usuarios autenticados pueden crear, modificar o eliminar productos:
 CREATE POLICY "Permitir inserción de productos a autenticados" 
@@ -157,10 +161,30 @@ CREATE POLICY "Acceso total a uso personal para autenticados"
   USING (auth.role() = 'authenticated');
 
 -- Políticas para CONFIGURACIÓN:
-CREATE POLICY "Lectura pública de configuración (para nombre de tienda en catálogo)" 
-  ON public.business_settings FOR SELECT 
-  USING (true);
-
 CREATE POLICY "Modificación de configuración para autenticados" 
   ON public.business_settings FOR ALL 
   USING (auth.role() = 'authenticated');
+
+REVOKE SELECT ON public.business_settings FROM PUBLIC, anon;
+GRANT SELECT ON public.business_settings TO authenticated;
+
+-- Vistas públicas: no exponen costos, cantidades exactas de stock ni ajustes internos.
+CREATE OR REPLACE VIEW public.catalog_public_products
+  WITH (security_barrier = true)
+AS
+  SELECT id, name, category, sale_price, description, image_url, stock,
+    offer_price, is_offer_active
+  FROM public.products
+  WHERE stock > 0;
+
+CREATE OR REPLACE VIEW public.catalog_public_business
+  WITH (security_barrier = true)
+AS
+  SELECT name, subtitle, whatsapp, currency, instagram
+  FROM public.business_settings
+  WHERE id = 'main_settings';
+
+REVOKE ALL ON public.catalog_public_products FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.catalog_public_business FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.catalog_public_products TO anon, authenticated;
+GRANT SELECT ON public.catalog_public_business TO anon, authenticated;
