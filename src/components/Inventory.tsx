@@ -11,6 +11,7 @@ import {
   List as ListIcon,
   Heart
 } from 'lucide-react';
+import { ProductImageGallery } from './ProductImageGallery';
 
 interface InventoryProps {
   products: Product[];
@@ -268,10 +269,10 @@ export const Inventory: React.FC<InventoryProps> = ({
                     {/* Item info */}
                     <td style={{ padding: '0.8rem 1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                        <img
-                          src={product.imageUrl || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=200'}
-                          alt={product.name}
-                          style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover' }}
+                        <ProductImageGallery
+                          product={product}
+                          showControls={false}
+                          containerStyle={{ width: '44px', height: '44px', borderRadius: '8px', flexShrink: 0 }}
                         />
                         <div>
                           <div style={{ fontWeight: 600 }}>{product.name}</div>
@@ -392,8 +393,10 @@ export const Inventory: React.FC<InventoryProps> = ({
             return (
               <div key={product.id} className="glass-panel-interactive" style={{ padding: '1.2rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ height: '180px', borderRadius: '10px', overflow: 'hidden', marginBottom: '0.9rem', position: 'relative' }}>
-                    <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <ProductImageGallery
+                    product={product}
+                    containerStyle={{ height: '180px', borderRadius: '10px', marginBottom: '0.9rem' }}
+                  >
                     <div style={{ position: 'absolute', top: '8px', right: '8px' }}>
                       {isOut ? (
                         <span className="badge badge-red">Sin Stock</span>
@@ -403,7 +406,7 @@ export const Inventory: React.FC<InventoryProps> = ({
                         <span className="badge badge-green">Stock ({product.stock})</span>
                       )}
                     </div>
-                  </div>
+                  </ProductImageGallery>
 
                   <span className="badge badge-pink" style={{ fontSize: '0.7rem' }}>{product.category}</span>
                   <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: '0.4rem 0 0.2rem 0' }}>{product.name}</h4>

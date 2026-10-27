@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import { CustomerCatalog } from './CustomerCatalog';
 import { fetchPublicCatalog, type PublicCatalogData } from '../services/publicCatalog';
 
@@ -37,8 +38,24 @@ export const PublicCatalogApp = () => {
 
   if (isLoading) {
     return (
-      <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
-        <p style={{ color: 'var(--text-muted)' }}>Cargando catálogo...</p>
+      <main className="catalog-loading-page" aria-live="polite" aria-busy="true">
+        <section className="catalog-loading-card">
+          <div className="catalog-loading-monogram" aria-hidden="true">
+            <span>AB</span>
+            <Sparkles className="catalog-loading-sparkle" size={18} />
+          </div>
+          <p className="catalog-loading-eyebrow">CATÁLOGO EXCLUSIVO</p>
+          <h1 className="catalog-loading-brand-name">Alma Beauty</h1>
+          <span className="catalog-loading-divider" aria-hidden="true" />
+          <p className="catalog-loading-title">Un momento para ti</p>
+          <p className="catalog-loading-message">Estamos preparando tu experiencia de belleza.</p>
+          <div className="catalog-loading-progress" role="status">
+            <span className="catalog-loading-progress-track" aria-hidden="true">
+              <span className="catalog-loading-progress-fill" />
+            </span>
+            <span className="catalog-loading-status">Cargando catálogo</span>
+          </div>
+        </section>
       </main>
     );
   }

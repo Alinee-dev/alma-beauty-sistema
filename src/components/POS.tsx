@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Product, CartItem, PaymentMethod, Sale, Category, BusinessSettings } from '../types';
 import { roundPesos } from '../services/money';
+import { ProductImageGallery } from './ProductImageGallery';
 import { 
   Search, 
   ShoppingCart, 
@@ -329,13 +330,11 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
                   }}
                 >
                   {/* Image */}
-                  <div style={{ position: 'relative', height: '140px', width: '100%', borderRadius: '10px', overflow: 'hidden', marginBottom: '0.75rem', backgroundColor: '#000' }}>
-                    <img
-                      src={product.imageUrl || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=400'}
-                      alt={product.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                    
+                  <ProductImageGallery
+                    product={product}
+                    fallbackWidth={400}
+                    containerStyle={{ height: '140px', width: '100%', borderRadius: '10px', marginBottom: '0.75rem', backgroundColor: '#000' }}
+                  >
                     {/* Stock Badge */}
                     <div style={{ position: 'absolute', top: '8px', right: '8px' }}>
                       {isOut ? (
@@ -346,7 +345,7 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
                         <span className="badge badge-pink">Stock: {product.stock}</span>
                       )}
                     </div>
-                  </div>
+                  </ProductImageGallery>
 
                   {/* Info */}
                   <div>
@@ -509,10 +508,11 @@ export const POS: React.FC<POSProps> = ({ products, settings, onCompleteSale }) 
                 }}
               >
                 {/* Thumbnail */}
-                <img
-                  src={item.product.imageUrl || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=200'}
-                  alt={item.product.name}
-                  style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover' }}
+                <ProductImageGallery
+                  product={item.product}
+                  fallbackWidth={200}
+                  showControls={false}
+                  containerStyle={{ width: '40px', height: '40px', borderRadius: '6px', flexShrink: 0 }}
                 />
 
                 {/* Details */}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { Product, Category, BusinessSettings } from '../types';
 import { Search, Sparkles, MessageCircle, ShoppingBag, Camera, CheckCircle2, Minus, Plus, Trash2, X, Heart } from 'lucide-react';
+import { ProductImageGallery } from './ProductImageGallery';
 
 interface CustomerCatalogProps {
   products: Product[];
@@ -346,10 +347,10 @@ export const CustomerCatalog: React.FC<CustomerCatalogProps> = ({ products, sett
                     borderBottom: '1px solid var(--border-color)',
                   }}
                 >
-                  <img
-                    src={product.imageUrl || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=400'}
-                    alt=""
-                    style={{ width: '64px', height: '64px', borderRadius: '10px', objectFit: 'cover' }}
+                  <ProductImageGallery
+                    product={product}
+                    showControls={false}
+                    containerStyle={{ width: '64px', height: '64px', borderRadius: '10px', flexShrink: 0 }}
                   />
                   <div style={{ minWidth: 0 }}>
                     <h3 style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: 1.35 }}>{product.name}</h3>
@@ -449,12 +450,10 @@ export const CustomerCatalog: React.FC<CustomerCatalogProps> = ({ products, sett
                 }}
               >
                 <div>
-                  <div className="catalog-product-image" style={{ height: '220px', width: '100%', borderRadius: '12px', overflow: 'hidden', marginBottom: '0.9rem', position: 'relative' }}>
-                    <img 
-                      src={product.imageUrl || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=400'} 
-                      alt={product.name} 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
+                  <ProductImageGallery
+                    product={product}
+                    containerStyle={{ height: '220px', width: '100%', borderRadius: '12px', marginBottom: '0.9rem' }}
+                  >
                     <button
                       type="button"
                       onClick={() => toggleFavorite(product.id)}
@@ -480,7 +479,7 @@ export const CustomerCatalog: React.FC<CustomerCatalogProps> = ({ products, sett
                     >
                       <Heart size={16} fill={favoriteIds.includes(product.id) ? 'currentColor' : 'none'} />
                     </button>
-                  </div>
+                  </ProductImageGallery>
 
                   <h3 className="catalog-product-name" style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0.2rem 0 0.4rem 0', color: 'var(--text-main)' }}>
                     {product.name}
