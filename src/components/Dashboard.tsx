@@ -27,6 +27,8 @@ import {
   Flame,
   Clock,
   PieChart,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { roundPesos } from '../services/money';
 
@@ -53,9 +55,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [timeFilter, setTimeFilter] = useState<'all' | 'month' | 'today'>(
     'month'
   );
+  const [areAmountsVisible, setAreAmountsVisible] = useState(true);
   const [isCashCutModalOpen, setIsCashCutModalOpen] = useState(false);
   const [cashCutAmount, setCashCutAmount] = useState('');
   const [cashCutError, setCashCutError] = useState('');
+  const formatAmount = (amount: number) =>
+    areAmountsVisible ? amount.toLocaleString() : '••••••';
 
   const getPaymentMethodStyle = (method: string) => {
     switch (method) {
@@ -314,7 +319,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       pozoToAdd > maximumPozoToAdd
     ) {
       setCashCutError(
-        `Ingresá un monto entre 0 y ${settings.currency} ${maximumPozoToAdd.toLocaleString()}.`
+        `Ingresá un monto entre 0 y ${settings.currency} ${formatAmount(maximumPozoToAdd)}.`
       );
       return;
     }
@@ -486,6 +491,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <option value="today">Solo Hoy</option>
                 <option value="all">Histórico Completo</option>
               </select>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setAreAmountsVisible((visible) => !visible)}
+                aria-label={areAmountsVisible ? 'Ocultar montos' : 'Mostrar montos'}
+                title={areAmountsVisible ? 'Ocultar montos' : 'Mostrar montos'}
+                style={{
+                  padding: '0.4rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {areAmountsVisible ? <Eye size={18} /> : <EyeOff size={18} />}
+              </button>
             </div>
           </div>
 
@@ -573,7 +594,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <h3 style={{ fontSize: '1.75rem', fontWeight: 800 }}>
-            {settings.currency} {todayRevenue.toLocaleString()}
+            {settings.currency} {formatAmount(todayRevenue)}
           </h3>
 
           <p
@@ -639,7 +660,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   : 'var(--danger)',
             }}
           >
-            {settings.currency} {totalNetProfit.toLocaleString()}
+            {settings.currency} {formatAmount(totalNetProfit)}
           </h3>
 
           <p
@@ -651,10 +672,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
             }}
           >
             Ganancia bruta: {settings.currency}{' '}
-            {totalGrossProfit.toLocaleString()}
+            {formatAmount(totalGrossProfit)}
             <br />
             Gastos restados: {settings.currency}{' '}
-            {totalExpensesAmount.toLocaleString()}
+            {formatAmount(totalExpensesAmount)}
           </p>
         </div>
 
@@ -839,7 +860,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 totalFiado > 0 ? '#c084fc' : 'var(--text-muted)',
             }}
           >
-            {settings.currency} {totalFiado.toLocaleString()}
+            {settings.currency} {formatAmount(totalFiado)}
           </h3>
 
           <p
@@ -1053,7 +1074,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-              {settings.currency} {totalRevenue.toLocaleString()}
+              {settings.currency} {formatAmount(totalRevenue)}
             </div>
 
             <div
@@ -1101,7 +1122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               }}
             >
               {settings.currency}{' '}
-              {Math.max(0, personalAmount).toLocaleString()}
+              {formatAmount(Math.max(0, personalAmount))}
             </div>
 
             {availableSalary > 0 && availableSalary < personalAmount && (
@@ -1114,7 +1135,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 }}
               >
                 {settings.currency}{' '}
-                {availableSalary.toLocaleString()}{' '}
+                {formatAmount(availableSalary)}{' '}
                 <span
                   style={{
                     fontSize: '0.7rem',
@@ -1156,7 +1177,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 color: '#34d399',
               }}
             >
-              {settings.currency} {cyclePozo.toLocaleString()}
+              {settings.currency} {formatAmount(cyclePozo)}
             </div>
 
           </div>
@@ -1189,7 +1210,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 color: totalCajaFisica < 0 ? '#ef4444' : '#a855f7',
               }}
             >
-              {settings.currency} {totalCajaFisica.toLocaleString()}
+              {settings.currency} {formatAmount(totalCajaFisica)}
             </div>
 
             <div
@@ -1366,7 +1387,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       }}
                     >
                       {settings.currency}{' '}
-                      {item.totalRevenue.toLocaleString()}
+                      {formatAmount(item.totalRevenue)}
                     </div>
                   </div>
                 </div>
@@ -1518,7 +1539,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         }}
                       >
                         {settings.currency}{' '}
-                        {sale.total.toLocaleString()}
+                        {formatAmount(sale.total)}
                       </div>
 
                       <div
@@ -1571,7 +1592,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
               Elegí cuánto del Aumento de Pozo querés sumar al capital. Se
               pueden agregar hasta {settings.currency}{' '}
-              {Math.max(0, cyclePozo).toLocaleString()}.
+              {formatAmount(Math.max(0, cyclePozo))}.
             </p>
 
             <label
@@ -1623,7 +1644,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               Capital después del corte:{' '}
               <strong>
                 {settings.currency}{' '}
-                {(totalCajaFisica + (Number(cashCutAmount) || 0)).toLocaleString()}
+                {formatAmount(totalCajaFisica + (Number(cashCutAmount) || 0))}
               </strong>
             </p>
 
